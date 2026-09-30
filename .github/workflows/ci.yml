@@ -34,7 +34,7 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      - run: flutter build ios --release --no-codesign --dart-define=API_BASE=${{ vars.API_BASE || 'http://localhost:8000/api' }}
+      - run: flutter build ios --release --no-codesign
 
   android:
     runs-on: ubuntu-latest
@@ -63,9 +63,8 @@ jobs:
         run: |
           echo "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > android/upload-keystore.jks
           echo "$KEY_PROPERTIES" > android/key.properties
-      # Set the repo variable API_BASE (Settings → Variables) to the VM URL,
-      # e.g. https://34-93-12-7.sslip.io/api
-      - run: flutter build apk --release --dart-define=API_BASE=${{ vars.API_BASE || 'http://10.0.2.2:8000/api' }}
+      # API_BASE defaults to production (lib/config.dart); a repo variable overrides it.
+      - run: flutter build apk --release ${{ vars.API_BASE && format('--dart-define=API_BASE={0}', vars.API_BASE) || '' }}
       - uses: actions/upload-artifact@v4
         with:
           name: tarajuu-apk

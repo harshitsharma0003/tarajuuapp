@@ -1,10 +1,10 @@
 /// Build-time configuration, set with --dart-define.
 ///
-///   flutter run --dart-define=API_BASE=https://34-93-12-7.sslip.io/api
+///   flutter run --dart-define=API_BASE=http://10.0.2.2:8000/api
 class Config {
-  /// Backend base URL. Default reaches a backend on the host machine from the
-  /// Android emulator.
-  static const apiBase = String.fromEnvironment('API_BASE', defaultValue: 'http://10.0.2.2:8000/api');
+  /// Backend base URL. Defaults to the production API on the GCP VM; override
+  /// for local work, e.g. --dart-define=API_BASE=http://10.0.2.2:8000/api
+  static const apiBase = String.fromEnvironment('API_BASE', defaultValue: 'https://34-133-147-216.sslip.io/api');
 
   /// Web OAuth client ID from Firebase (needed by Google sign-in on Android
   /// if it cannot be read from google-services.json).
