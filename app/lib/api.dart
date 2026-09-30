@@ -23,6 +23,8 @@ class Api {
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
+        // Harmless elsewhere; stops free ngrok tunnels serving their browser warning page.
+        'ngrok-skip-browser-warning': '1',
         if (token != null) 'Authorization': 'Bearer $token',
       };
 
