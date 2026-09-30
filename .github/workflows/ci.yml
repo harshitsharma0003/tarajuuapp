@@ -37,6 +37,16 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter analyze
+      # Signing key from repo secrets (see README → Android signing). Without the
+      # secrets the build falls back to a throwaway debug key.
+      - name: Restore upload keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEY_PROPERTIES: ${{ secrets.ANDROID_KEY_PROPERTIES }}
+        if: env.KEYSTORE_BASE64 != ''
+        run: |
+          echo "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > android/upload-keystore.jks
+          echo "$KEY_PROPERTIES" > android/key.properties
       # Set the repo variable API_BASE (Settings → Variables) to the VM URL,
       # e.g. https://34-93-12-7.sslip.io/api
       - run: flutter build apk --release --dart-define=API_BASE=${{ vars.API_BASE || 'http://10.0.2.2:8000/api' }}
