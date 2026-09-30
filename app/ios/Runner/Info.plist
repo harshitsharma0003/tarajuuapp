@@ -4,6 +4,17 @@
 <dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Tarajuu uses your location to show nearby rides and set your pickup point.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>app-1-930986219008-ios-ebe0a9693eaaad88846ae5</string>
+			</array>
+		</dict>
+	</array>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>https</string>

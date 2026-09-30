@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "930986219008",
+    "project_id": "tarajuumobile",
+    "storage_bucket": "tarajuumobile.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:930986219008:android:3c755488890dfc31846ae5",
+        "android_client_info": {
+          "package_name": "app.tarajuu.tarajuu"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDWU18aE4WYrpiUzRFxwCZE-3JN3esFKuo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
