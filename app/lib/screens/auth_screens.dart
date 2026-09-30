@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 
+import '../config.dart';
 import '../routes.dart';
 import '../state/session.dart';
 import '../theme.dart';
@@ -50,6 +51,10 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _google() async {
+    if (!Config.googleSignInEnabled) {
+      toast(context, 'Google sign-in is coming soon — please use your mobile number.');
+      return;
+    }
     setState(() => _gBusy = true);
     try {
       await context.read<Session>().signInWithGoogle();
