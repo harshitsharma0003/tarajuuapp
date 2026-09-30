@@ -1,0 +1,16 @@
+# Python
+backend/.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Secrets
+backend/.env
+deploy/.env
+*.keystore
+*.jks
+app/android/key.properties
+
+# Flutter (app/.gitignore covers the rest)
+app/build/
+app/.dart_tool/
