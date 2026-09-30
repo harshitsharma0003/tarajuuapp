@@ -55,7 +55,7 @@ def parse_search(html: str, limit: int = 12) -> list[Listing]:
     return out
 
 
-async def search(query: str, limit: int = 12) -> list[Listing]:
+async def search_direct(query: str, limit: int = 12) -> list[Listing]:
     async with client() as c:
         r = await c.get(f"{get_settings().amazon_host}/s?k={quote_plus(query)}")
     _check_blocked(r.status_code, r.text)
@@ -99,9 +99,25 @@ def parse_product(asin: str, html: str) -> Listing:
     )
 
 
-async def product(asin: str) -> Listing:
+async def product_direct(asin: str) -> Listing:
     async with client() as c:
         r = await c.get(f"{get_settings().amazon_host}/dp/{asin}")
     _check_blocked(r.status_code, r.text)
     r.raise_for_status()
     return parse_product(asin, r.text)
+
+
+# ── public entry points: direct fetch, or via the scrape agent ──
+
+async def search(query: str, limit: int = 12) -> list[Listing]:
+    if get_settings().scrape_mode == "agent":
+        from ..services import agent_queue
+        return await agent_queue.run("amazon_search", {"query": query, "limit": limit})
+    return await search_direct(query, limit)
+
+
+async def product(asin: str) -> Listing:
+    if get_settings().scrape_mode == "agent":
+        from ..services import agent_queue
+        return await agent_queue.run("amazon_product", {"asin": asin})
+    return await product_direct(asin)

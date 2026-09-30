@@ -149,6 +149,7 @@ class _ShopScreenState extends State<ShopScreen> {
   String? get _sourceNote {
     final a = _sources['amazon'], f = _sources['flipkart'];
     if (a == 'blocked') return 'Amazon is busy right now — showing what we have. Try again in a minute.';
+    if (a == 'offline') return 'Live price fetching is paused right now — showing the latest saved prices.';
     if (a == 'error' && f != 'ok') return 'Couldn\'t reach the stores. Pull down to retry.';
     if (f == 'disabled' || f == 'error') return 'Flipkart prices unavailable right now.';
     return null;

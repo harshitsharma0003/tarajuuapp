@@ -80,3 +80,16 @@ CREATE TABLE IF NOT EXISTS buy_clicks (
     saved_amount int NOT NULL DEFAULT 0,
     created_at   timestamptz NOT NULL DEFAULT now()
 );
+
+-- Scrape jobs handed to the local scrape agent (SCRAPE_MODE=agent).
+CREATE TABLE IF NOT EXISTS scrape_jobs (
+    id          bigserial PRIMARY KEY,
+    kind        text NOT NULL,
+    args        jsonb NOT NULL,
+    status      text NOT NULL DEFAULT 'queued',  -- queued | running | done | error | expired
+    result      jsonb,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    claimed_at  timestamptz,
+    finished_at timestamptz
+);
+CREATE INDEX IF NOT EXISTS scrape_jobs_queued_idx ON scrape_jobs (id) WHERE status = 'queued';

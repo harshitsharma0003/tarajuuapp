@@ -26,6 +26,12 @@ class Settings(BaseSettings):
     amazon_partner_tag: str = ""  # optional Associates tag appended to buy links
     flipkart_affiliate_id: str = ""
     flipkart_affiliate_token: str = ""
+    # "direct": the API server fetches amazon.in itself.
+    # "agent": jobs are queued and a scrape agent (python -m app.agent) running on
+    # an ordinary internet connection claims them — for cloud IPs Amazon rejects.
+    scrape_mode: str = "direct"
+    agent_token: str = ""
+    agent_api: str = ""  # used by the agent process: the API base URL it polls
     search_cache_minutes: int = 60
     detail_cache_hours: int = 6
     scrape_timeout_seconds: float = 15.0

@@ -8,6 +8,7 @@ from ..db import pool
 from ..scrapers import amazon, flipkart
 from ..scrapers.common import Listing, SourceBlocked
 from . import matcher
+from .agent_queue import AgentOffline
 from .catalog import category_for, emoji_for
 
 log = logging.getLogger(__name__)
@@ -25,6 +26,9 @@ async def _run_source(name: str, coro) -> tuple[str, list[Listing]]:
     except SourceBlocked:
         log.warning("%s blocked the request", name)
         return "blocked", []
+    except AgentOffline as e:
+        log.warning("%s: %s", name, e)
+        return "offline", []
     except Exception:  # noqa: BLE001 — one flaky source must not sink the search
         log.exception("%s search failed", name)
         return "error", []
