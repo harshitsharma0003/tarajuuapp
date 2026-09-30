@@ -69,7 +69,8 @@ jobs:
       - name: Show signing certificate
         run: |
           APKSIGNER=$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)apksigner
-          "$APKSIGNER" verify --print-certs build/app/outputs/flutter-apk/app-release.apk | grep -E "DN|SHA-1|SHA-256"
+          "$APKSIGNER" verify --print-certs build/app/outputs/flutter-apk/app-release.apk | tee certs.txt | grep -E "DN|SHA-1|SHA-256"
+          echo "::notice title=APK signing SHA-1::$(grep -m1 'SHA-1' certs.txt | awk '{print $NF}')"
       - uses: actions/upload-artifact@v4
         with:
           name: tarajuu-apk
