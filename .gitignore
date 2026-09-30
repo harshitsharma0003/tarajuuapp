@@ -14,3 +14,6 @@ app/android/key.properties
 # Flutter (app/.gitignore covers the rest)
 app/build/
 app/.dart_tool/
+
+# local scrape agent log
+backend/agent.log

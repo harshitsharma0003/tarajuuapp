@@ -1,4 +1,5 @@
 """Amazon.in: plain HTML scraping of the public search and product pages."""
+import asyncio
 import re
 from urllib.parse import quote_plus
 
@@ -56,11 +57,18 @@ def parse_search(html: str, limit: int = 12) -> list[Listing]:
 
 
 async def search_direct(query: str, limit: int = 12) -> list[Listing]:
-    async with client() as c:
-        r = await c.get(f"{get_settings().amazon_host}/s?k={quote_plus(query)}")
-    _check_blocked(r.status_code, r.text)
-    r.raise_for_status()
-    return parse_search(r.text, limit)
+    # Amazon occasionally serves a stripped page with no result cards; one
+    # retry after a short pause is enough to get the real page.
+    for attempt in range(2):
+        async with client() as c:
+            r = await c.get(f"{get_settings().amazon_host}/s?k={quote_plus(query)}")
+        _check_blocked(r.status_code, r.text)
+        r.raise_for_status()
+        listings = parse_search(r.text, limit)
+        if listings or attempt == 1:
+            return listings
+        await asyncio.sleep(2)
+    return []
 
 
 def parse_product(asin: str, html: str) -> Listing:
