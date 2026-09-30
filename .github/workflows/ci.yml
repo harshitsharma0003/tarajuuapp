@@ -65,6 +65,9 @@ jobs:
           echo "$KEY_PROPERTIES" > android/key.properties
       # API_BASE defaults to production (lib/config.dart); a repo variable overrides it.
       - run: flutter build apk --release ${{ vars.API_BASE && format('--dart-define=API_BASE={0}', vars.API_BASE) || '' }}
+      # Must match the SHA-1 registered in Firebase (8B:39:DA:CD:…:77:CB) or phone OTP fails.
+      - name: Show signing certificate
+        run: keytool -printcert -jarfile build/app/outputs/flutter-apk/app-release.apk | grep -E "Owner|SHA1|SHA256"
       - uses: actions/upload-artifact@v4
         with:
           name: tarajuu-apk
