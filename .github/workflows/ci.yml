@@ -75,3 +75,15 @@ jobs:
         with:
           name: tarajuu-apk
           path: app/build/app/outputs/flutter-apk/app-release.apk
+      # Firebase Test Lab pair: app + instrumentation APK running integration_test/app_test.dart.
+      - name: Build Test Lab APKs
+        working-directory: app/android
+        run: |
+          ./gradlew app:assembleAndroidTest
+          ./gradlew app:assembleDebug -Ptarget="$(pwd)/../integration_test/app_test.dart"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: testlab-apks
+          path: |
+            app/build/app/outputs/apk/debug/app-debug.apk
+            app/build/app/outputs/apk/androidTest/debug/app-debug-androidTest.apk
