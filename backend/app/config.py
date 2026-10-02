@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     # Sandbox: no real drivers. Set UBER_SANDBOX=true and a run id from POST /v1/guests/sandbox/run.
     uber_sandbox: bool = False
     uber_sandbox_run_id: str = ""
+    # Test apps on the Uber dashboard authenticate against the sandbox login.
+    uber_auth_url: str = "https://auth.uber.com/oauth/v2/token"
+    uber_sandbox_auth_url: str = "https://sandbox-login.uber.com/oauth/v2/token"
     osrm_base: str = "https://router.project-osrm.org"
     photon_base: str = "https://photon.komoot.io"
     contact_email: str = "support@tarajuu.app"  # sent in User-Agent to OSM services

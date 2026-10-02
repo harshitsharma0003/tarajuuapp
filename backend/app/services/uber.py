@@ -22,7 +22,7 @@ async def _access_token(c: httpx.AsyncClient) -> str:
     if _token["value"] and time.time() < _token["exp"] - 60:
         return _token["value"]
     s = get_settings()
-    r = await c.post("https://auth.uber.com/oauth/v2/token", data={
+    r = await c.post(s.uber_sandbox_auth_url if s.uber_sandbox else s.uber_auth_url, data={
         "client_id": s.uber_client_id, "client_secret": s.uber_client_secret,
         "grant_type": "client_credentials", "scope": s.uber_scope,
     })
