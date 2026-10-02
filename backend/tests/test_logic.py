@@ -1,6 +1,6 @@
 """Pure-logic tests (no DB, no network). Run: python -m pytest tests -q"""
 from app.scrapers.common import Listing, parse_float, parse_int
-from app.services import matcher, rides
+from app.services import matcher, rides, uber
 from app.services.catalog import category_for
 
 
@@ -57,14 +57,33 @@ def test_uber_type_mapping():
     assert rides.uber_type("Uber Moto") == "bike"
 
 
-def test_uber_parsers():
-    riders = {"prices": [{"display_name": "UberGo", "product_id": "p1", "low_estimate": 310, "high_estimate": 380, "duration": 1680}]}
-    assert rides._parse_riders(riders) == [{"name": "UberGo", "product_id": "p1", "low": 310, "high": 380, "duration_min": 28}]
-    guests = {"product_estimates": [{"product": {"display_name": "Uber Go", "product_id": "p2"},
-                                     "estimate_info": {"fare": {"value": 322.5}, "pickup_estimate": 3,
-                                                       "trip": {"duration_estimate": 1500}}}]}
-    out = rides._parse_guests(guests)[0]
-    assert out["low"] == 322 and out["pickup_min"] == 3 and out["duration_min"] == 25
+def test_uber_estimates_parser():
+    body = {"product_estimates": [
+        {"product": {"display_name": "Uber Go", "product_id": "p2"},
+         "estimate_info": {"fare_id": "f1", "fare": {"value": 322.5, "fare_id": "f1"}, "pickup_estimate": 3,
+                           "trip": {"duration_estimate": 1500}},
+         "fulfillment_indicator": "GREEN"},
+        {"product": {"display_name": "Premier", "product_id": "p3"},
+         "estimate_info": {"fare_id": "f2", "estimate": {"low_estimate": 400, "high_estimate": 460}}},
+        {"product": {"display_name": "XL", "product_id": "p4"},
+         "estimate_info": {"no_cars_available": True, "fare": {"value": 900}}},
+    ]}
+    out = uber.parse_estimates(body)
+    assert [o["product_id"] for o in out] == ["p2", "p3"]  # no-cars product dropped
+    go, premier = out
+    assert go["low"] == 322 and go["fare_id"] == "f1" and go["pickup_min"] == 3 and go["duration_min"] == 25
+    assert premier["low"] == 400 and premier["high"] == 460
+
+
+def test_uber_trip_normalise():
+    t = {"status": "accepted", "driver": {"name": "Ravi", "rating": 4.9, "phone_number": "+9100"},
+         "vehicle": {"make": "Maruti", "model": "Dzire", "vehicle_color_name": "white", "license_plate": "DL1AB1234"},
+         "location": {"latitude": 28.6, "longitude": 77.2, "bearing": 90}, "pickup": {"eta": 4},
+         "rider_tracking_url": "https://trip.uber.com/x"}
+    n = uber.normalise_trip(t)
+    assert n["driver"]["name"] == "Ravi" and n["vehicle"]["plate"] == "DL1AB1234"
+    assert n["driverLocation"] == {"lat": 28.6, "lon": 77.2, "bearing": 90} and n["pickupEtaMin"] == 4
+    assert not n["terminal"] and uber.normalise_trip({"status": "completed"})["terminal"]
 
 
 def test_deeplinks():

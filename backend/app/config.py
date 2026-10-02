@@ -39,8 +39,15 @@ class Settings(BaseSettings):
     # ── rides ──
     uber_client_id: str = ""
     uber_client_secret: str = ""
-    uber_scope: str = "ride_request.estimate"
+    uber_scope: str = "guests.trips"
     uber_api_base: str = "https://api.uber.com"
+    # Guest Rides: trips are billed to this Uber for Business organization.
+    uber_org_uuid: str = ""
+    # Book trips through the API (else the app hands off to the Uber app via deep link).
+    uber_booking_enabled: bool = False
+    # Sandbox: no real drivers. Set UBER_SANDBOX=true and a run id from POST /v1/guests/sandbox/run.
+    uber_sandbox: bool = False
+    uber_sandbox_run_id: str = ""
     osrm_base: str = "https://router.project-osrm.org"
     photon_base: str = "https://photon.komoot.io"
     contact_email: str = "support@tarajuu.app"  # sent in User-Agent to OSM services

@@ -10,6 +10,16 @@ class LocationState extends ChangeNotifier {
   bool loading = false;
   String? error;
 
+  /// Opens app settings if permission was permanently denied, else the device location toggle.
+  Future<void> openSettings() async {
+    final perm = await Geolocator.checkPermission();
+    if (perm == LocationPermission.deniedForever) {
+      await Geolocator.openAppSettings();
+    } else if (!await Geolocator.isLocationServiceEnabled()) {
+      await Geolocator.openLocationSettings();
+    }
+  }
+
   Future<void> locate() async {
     if (loading) return;
     loading = true;

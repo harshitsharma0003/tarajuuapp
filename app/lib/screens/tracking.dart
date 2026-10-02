@@ -7,21 +7,37 @@ import 'package:provider/provider.dart';
 import '../routes.dart';
 import '../state/session.dart';
 import '../theme.dart';
+import 'live_tracking.dart';
 import 'rides.dart';
 
-/// Uber-style live tracking, ported from the prototype's animated SVG map.
-///
-/// DEMO ONLY (enabled with --dart-define=DEMO_TRACKING=true): real trips are
-/// booked and tracked inside the provider's own app, which does not share
-/// driver location with third parties.
-class TrackingScreen extends StatefulWidget {
-  final ConfirmArgs args;
-  const TrackingScreen({super.key, required this.args});
-  @override
-  State<TrackingScreen> createState() => _TrackingScreenState();
+class TrackingArgs {
+  final ConfirmArgs confirm;
+
+  /// Set when the ride was booked through the API → live tracking.
+  final String? bookingId;
+  TrackingArgs(this.confirm, {this.bookingId});
 }
 
-class _TrackingScreenState extends State<TrackingScreen> with SingleTickerProviderStateMixin {
+/// Ride tracking. Live for API-booked rides (Uber Guest Rides); otherwise the
+/// prototype's animated demo (only reachable with --dart-define=DEMO_TRACKING=true).
+class TrackingScreen extends StatelessWidget {
+  final TrackingArgs args;
+  const TrackingScreen({super.key, required this.args});
+  @override
+  Widget build(BuildContext context) => args.bookingId == null
+      ? _DemoTracking(args: args.confirm)
+      : LiveTrackingScreen(confirm: args.confirm, bookingId: args.bookingId!);
+}
+
+/// Uber-style tracking demo, ported from the prototype's animated SVG map.
+class _DemoTracking extends StatefulWidget {
+  final ConfirmArgs args;
+  const _DemoTracking({required this.args});
+  @override
+  State<_DemoTracking> createState() => _DemoTrackingState();
+}
+
+class _DemoTrackingState extends State<_DemoTracking> with SingleTickerProviderStateMixin {
   // carT advances 0.002/frame to 0.97 in the prototype ≈ 8s at 60fps.
   late final _c = AnimationController(vsync: this, duration: const Duration(seconds: 8))..forward();
   int _eta = 3;

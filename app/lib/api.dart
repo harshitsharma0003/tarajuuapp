@@ -100,6 +100,23 @@ class Api {
 
   Future<Place> reverse(double lat, double lon) async => Place.fromJson(await get('/places/reverse', {'lat': lat, 'lon': lon}));
 
+  Future<String> bookRide(Place from, Place to, Fare f) async {
+    final j = await post('/rides/book', {
+      'pickup': from.toJson(),
+      'dropoff': to.toJson(),
+      'provider': f.provider,
+      'productId': f.productId,
+      'fareId': f.fareId,
+      'productName': f.product,
+      'price': f.price,
+    });
+    return j['bookingId'] as String;
+  }
+
+  Future<TripStatus> rideStatus(String bookingId) async => TripStatus.fromJson(await get('/rides/bookings/$bookingId'));
+
+  Future<void> cancelRide(String bookingId) => delete('/rides/bookings/$bookingId');
+
   Future<RideEstimate> estimate(Place from, Place to, String type) async => RideEstimate.fromJson(
       await post('/rides/estimate', {'pickup': from.toJson(), 'dropoff': to.toJson(), 'type': type}));
 }

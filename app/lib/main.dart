@@ -68,7 +68,7 @@ class TarajuuApp extends StatelessWidget {
           Routes.pdp => PdpScreen(productId: a as String),
           Routes.rides => RidesScreen(initial: a),
           Routes.confirm => ConfirmScreen(args: a as ConfirmArgs),
-          Routes.tracking => TrackingScreen(args: a as ConfirmArgs),
+          Routes.tracking => TrackingScreen(args: a as TrackingArgs),
           Routes.about => const AboutScreen(),
           _ => const HomeScreen(),
         };

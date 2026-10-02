@@ -93,3 +93,19 @@ CREATE TABLE IF NOT EXISTS scrape_jobs (
     finished_at timestamptz
 );
 CREATE INDEX IF NOT EXISTS scrape_jobs_queued_idx ON scrape_jobs (id) WHERE status = 'queued';
+
+-- Rides booked through a provider API (Uber Guest Rides).
+CREATE TABLE IF NOT EXISTS ride_bookings (
+    id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id     uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    provider    text NOT NULL,
+    request_id  text NOT NULL,
+    product     text,
+    fare        int,
+    pickup      jsonb NOT NULL,
+    dropoff     jsonb NOT NULL,
+    status      text NOT NULL DEFAULT 'processing',
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    updated_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS ride_bookings_user_idx ON ride_bookings (user_id, created_at DESC);

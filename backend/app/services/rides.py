@@ -2,13 +2,10 @@
 for providers without a public API (Rapido, Ola) or when Uber is not configured.
 """
 import logging
-import time
 from urllib.parse import urlencode
 
-import httpx
-
 from ..config import get_settings
-from . import geo
+from . import geo, uber
 
 log = logging.getLogger(__name__)
 
@@ -83,77 +80,6 @@ def rate_card_fare(provider: str, ride_type: str, km: float, minutes: int) -> di
     return {"product": name, "price": price, "priceLow": price, "priceHigh": price}
 
 
-# ───────────────────────── Uber API ─────────────────────────
-
-_token: dict = {"value": None, "exp": 0.0}
-
-
-async def _uber_token(c: httpx.AsyncClient) -> str:
-    if _token["value"] and time.time() < _token["exp"] - 60:
-        return _token["value"]
-    s = get_settings()
-    r = await c.post("https://auth.uber.com/oauth/v2/token", data={
-        "client_id": s.uber_client_id, "client_secret": s.uber_client_secret,
-        "grant_type": "client_credentials", "scope": s.uber_scope,
-    })
-    r.raise_for_status()
-    body = r.json()
-    _token.update(value=body["access_token"], exp=time.time() + int(body.get("expires_in", 3600)))
-    return _token["value"]
-
-
-def _parse_riders(body: dict) -> list[dict]:
-    """GET /v1.2/estimates/price → prices[]."""
-    out = []
-    for p in body.get("prices", []):
-        low, high = p.get("low_estimate"), p.get("high_estimate")
-        if low is None:
-            continue
-        out.append({"name": p.get("display_name", "Uber"), "product_id": p.get("product_id"),
-                    "low": int(low), "high": int(high or low),
-                    "duration_min": round(p["duration"] / 60) if p.get("duration") else None})
-    return out
-
-
-def _parse_guests(body: dict) -> list[dict]:
-    """POST /v1/guests/trips/estimates → product_estimates[]."""
-    out = []
-    for e in body.get("product_estimates", []):
-        product = e.get("product", {})
-        info = e.get("estimate_info", {})
-        fare = info.get("fare") or {}
-        est = info.get("estimate") or {}
-        low = fare.get("value") or est.get("low_estimate")
-        if low is None:
-            continue
-        trip = info.get("trip") or {}
-        out.append({"name": product.get("display_name", "Uber"), "product_id": product.get("product_id"),
-                    "low": int(float(low)), "high": int(float(est.get("high_estimate") or low)),
-                    "duration_min": round(trip["duration_estimate"] / 60) if trip.get("duration_estimate") else None,
-                    "pickup_min": info.get("pickup_estimate")})
-    return out
-
-
-async def uber_estimates(a: dict, b: dict) -> list[dict]:
-    s = get_settings()
-    async with httpx.AsyncClient(timeout=10) as c:
-        token = await _uber_token(c)
-        headers = {"Authorization": f"Bearer {token}", "Accept-Language": "en_US"}
-        if "guests" in s.uber_scope:
-            r = await c.post(f"{s.uber_api_base}/v1/guests/trips/estimates", headers=headers, json={
-                "pickup": {"latitude": a["lat"], "longitude": a["lon"]},
-                "dropoff": {"latitude": b["lat"], "longitude": b["lon"]},
-            })
-            r.raise_for_status()
-            return _parse_guests(r.json())
-        r = await c.get(f"{s.uber_api_base}/v1.2/estimates/price", headers=headers, params={
-            "start_latitude": a["lat"], "start_longitude": a["lon"],
-            "end_latitude": b["lat"], "end_longitude": b["lon"],
-        })
-        r.raise_for_status()
-        return _parse_riders(r.json())
-
-
 # ───────────────────────── public API ─────────────────────────
 
 async def estimate(a: dict, b: dict, ride_type: str) -> dict:
@@ -164,13 +90,14 @@ async def estimate(a: dict, b: dict, ride_type: str) -> dict:
     uber_status = "disabled"
     if get_settings().uber_enabled:
         try:
-            live = [p for p in await uber_estimates(a, b) if uber_type(p["name"]) == ride_type]
+            products = await uber.estimates(a, b)
+            live = [p for p in products if uber_type(p["name"]) == ride_type]
             if live:
-                cheapest = min(live, key=lambda p: p["low"])
-                uber_live = cheapest
+                uber_live = min(live, key=lambda p: p["low"])
                 uber_status = "live"
             else:
-                uber_status = "no_product"
+                # Uber answered but has no car of this type here (or doesn't serve this pickup).
+                uber_status = "not_serviced" if not products else "no_product"
         except Exception:  # noqa: BLE001
             log.exception("Uber estimate failed")
             uber_status = "error"
@@ -184,6 +111,9 @@ async def estimate(a: dict, b: dict, ride_type: str) -> dict:
             eta = uber_live.get("pickup_min") or PICKUP_ETA_MIN["uber"]
             estimated = False
             link = deeplink("uber", a, b, uber_live.get("product_id"))
+            fare["productId"] = uber_live.get("product_id")
+            fare["fareId"] = uber_live.get("fare_id")
+            fare["bookable"] = get_settings().uber_booking_enabled and bool(uber_live.get("product_id"))
         else:
             fare = rate_card_fare(provider, ride_type, km, mins)
             duration, eta, estimated = mins, PICKUP_ETA_MIN[provider], True

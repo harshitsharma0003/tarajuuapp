@@ -55,10 +55,14 @@ class _RidesScreenState extends State<RidesScreen> {
       _toCtrl.text = _to!.name;
       WidgetsBinding.instance.addPostFrameCallback((_) => _check());
     } else {
-      final here = context.read<LocationState>().current;
-      if (here != null) {
-        _from = here;
-        _fromCtrl.text = here.name;
+      final loc = context.read<LocationState>();
+      if (loc.current != null) {
+        _usePickup(loc.current!);
+      } else {
+        // Detect location now and use it as pickup unless the user typed one meanwhile.
+        loc.locate().then((_) {
+          if (mounted && _from == null && _fromCtrl.text.isEmpty && loc.current != null) setState(() => _usePickup(loc.current!));
+        });
       }
     }
     if (init == 'fast') WidgetsBinding.instance.addPostFrameCallback((_) => _startFast());
@@ -75,6 +79,11 @@ class _RidesScreenState extends State<RidesScreen> {
     _fromFocus.dispose();
     _toFocus.dispose();
     super.dispose();
+  }
+
+  void _usePickup(Place p) {
+    _from = p;
+    _fromCtrl.text = p.name;
   }
 
   void _onFocus(String field, bool has) {
@@ -229,6 +238,7 @@ class _RidesScreenState extends State<RidesScreen> {
         ),
         Expanded(
           child: ListView(padding: const EdgeInsets.all(14), children: [
+            _locationBanner(),
             _label('From'),
             _placeField(_fromCtrl, _fromFocus, '📍 Current location or type address', 'from'),
             if (_activeField == 'from') _dropdown('from'),
@@ -264,6 +274,29 @@ class _RidesScreenState extends State<RidesScreen> {
           ]),
         ),
         const BottomNav(2),
+      ]),
+    );
+  }
+
+  /// Shown when the device location can't be read (permission off, GPS off…).
+  Widget _locationBanner() {
+    final loc = context.watch<LocationState>();
+    if (loc.current != null || loc.loading || loc.error == null) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(color: T.amberPale, border: Border.all(color: T.amberBorder), borderRadius: BorderRadius.circular(10)),
+      child: Row(children: [
+        const Text('📍', style: TextStyle(fontSize: 14)),
+        const SizedBox(width: 8),
+        Expanded(child: Text('${loc.error}. Turn on location to auto-fill your pickup.', style: pop(10.5, c: T.amberDark, h: 1.4))),
+        TextButton(
+          onPressed: () async {
+            await loc.openSettings();
+            await loc.locate();
+          },
+          child: Text('Enable', style: pop(11, w: FontWeight.w700, c: T.amber)),
+        ),
       ]),
     );
   }
@@ -372,6 +405,17 @@ class _RidesScreenState extends State<RidesScreen> {
           Expanded(child: Text('${est.fares.first.product} saves you ₹${est.savings} on this trip!', style: pop(11, w: FontWeight.w700, c: T.green))),
         ]),
       ));
+      if (est.uberStatus == 'not_serviced' || est.uberStatus == 'no_product') {
+        out.add(Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Text(
+            est.uberStatus == 'not_serviced'
+                ? "⚠️ Uber doesn't operate at this pickup point right now — Uber price shown is an estimate."
+                : '⚠️ No Uber ${est.label.toLowerCase()} available nearby right now — Uber price shown is an estimate.',
+            style: pop(9.5, w: FontWeight.w600, c: T.amberDark, h: 1.5),
+          ),
+        ));
+      }
       if (est.fares.any((f) => f.estimated)) {
         out.add(Padding(
           padding: const EdgeInsets.only(top: 8),

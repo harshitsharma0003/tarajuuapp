@@ -43,5 +43,7 @@ async def health():
         "scraper": s.scrape_mode if s.scrape_mode != "agent" else ("agent-online" if agent_queue.online() else "agent-offline"),
         "flipkart": s.flipkart_enabled,
         "uber": s.uber_enabled,
+        "uberBooking": s.uber_enabled and s.uber_booking_enabled,
+        "uberSandbox": s.uber_sandbox,
         "firebase": bool(s.firebase_project_id),
     }

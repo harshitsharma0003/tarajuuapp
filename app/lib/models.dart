@@ -142,6 +142,8 @@ class Place {
 
 class Fare {
   final String provider, product, deeplink;
+  final String? productId, fareId;
+  final bool bookable; // true → can be booked through the API (Uber Guest Rides)
   final int price, priceLow, priceHigh, durationMin, pickupEtaMin;
   final double distanceKm;
   final bool estimated;
@@ -155,7 +157,10 @@ class Fare {
         durationMin = _int(j['durationMin'])!,
         pickupEtaMin = _int(j['pickupEtaMin'])!,
         distanceKm = _dbl(j['distanceKm'])!,
-        estimated = j['estimated'] ?? true;
+        estimated = j['estimated'] ?? true,
+        productId = j['productId'],
+        fareId = j['fareId'],
+        bookable = j['bookable'] ?? false;
 
   String get providerName => const {'uber': 'Uber', 'rapido': 'Rapido', 'ola': 'Ola'}[provider] ?? provider;
   String get logo => const {'uber': 'UBER', 'rapido': 'RPD', 'ola': 'OLA'}[provider] ?? provider.toUpperCase();
@@ -190,4 +195,51 @@ class RecentItem {
         query = j['query'],
         title = j['title'],
         subtitle = j['subtitle'];
+}
+
+/// Live state of a ride booked through the API.
+class TripStatus {
+  final String bookingId, status;
+  final bool terminal;
+  final String? product, driverName, driverPhone, vehicle, plate, pin, trackingUrl;
+  final double? driverRating, driverLat, driverLon, driverBearing;
+  final int? pickupEtaMin, dropoffEtaMin, fare;
+  final Place pickup, dropoff;
+
+  TripStatus.fromJson(Map<String, dynamic> j)
+      : bookingId = j['bookingId'],
+        status = j['status'] ?? 'processing',
+        terminal = j['terminal'] ?? false,
+        product = j['product'],
+        driverName = j['driver']?['name'],
+        driverPhone = j['driver']?['phone'],
+        driverRating = _dbl(j['driver']?['rating']),
+        vehicle = j['vehicle'] == null
+            ? null
+            : [j['vehicle']['color'], j['vehicle']['make'], j['vehicle']['model']].whereType<String>().join(' '),
+        plate = j['vehicle']?['plate'],
+        pin = j['pin'],
+        trackingUrl = j['trackingUrl'],
+        driverLat = _dbl(j['driverLocation']?['lat']),
+        driverLon = _dbl(j['driverLocation']?['lon']),
+        driverBearing = _dbl(j['driverLocation']?['bearing']),
+        pickupEtaMin = _int(j['pickupEtaMin']),
+        dropoffEtaMin = _int(j['dropoffEtaMin']),
+        fare = _int(j['fare']),
+        pickup = Place(name: j['pickup']['name'] ?? '', lat: _dbl(j['pickup']['lat'])!, lon: _dbl(j['pickup']['lon'])!),
+        dropoff = Place(name: j['dropoff']['name'] ?? '', lat: _dbl(j['dropoff']['lat'])!, lon: _dbl(j['dropoff']['lon'])!);
+
+  /// Headline for the tracking sheet.
+  String get headline => switch (status) {
+        'processing' => 'Finding your driver…',
+        'accepted' => pickupEtaMin != null ? 'Pick-up in $pickupEtaMin min' : 'Driver on the way',
+        'arriving' => 'Driver arriving now!',
+        'in_progress' => dropoffEtaMin != null ? 'On trip · $dropoffEtaMin min to drop' : 'On trip',
+        'completed' => 'Trip completed 🎉',
+        'no_drivers_available' => 'No drivers available',
+        'driver_canceled' => 'Driver cancelled',
+        'rider_canceled' => 'Ride cancelled',
+        'scheduled' => 'Ride scheduled',
+        _ => status.replaceAll('_', ' '),
+      };
 }
