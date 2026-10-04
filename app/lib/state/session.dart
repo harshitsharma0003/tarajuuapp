@@ -75,6 +75,10 @@ class Session extends ChangeNotifier {
   Future<bool> sendOtp(String tenDigits, {String? name, String? email, bool resend = false}) async {
     _requireFirebase();
     pendingPhone = '+91$tenDigits';
+    // No robot check for Firebase test numbers; real numbers use silent Play Integrity.
+    await FirebaseAuth.instance.setSettings(
+      appVerificationDisabledForTesting: Config.otpTestNumbers.contains(pendingPhone),
+    );
     if (name != null) pendingName = name;
     if (email != null) pendingEmail = email;
     final done = Completer<bool>();

@@ -14,6 +14,12 @@ class Config {
   /// enabled in Firebase (tarajuumobile). The button stays, showing "coming soon".
   static const googleSignInEnabled = bool.fromEnvironment('GOOGLE_SIGN_IN');
 
+  /// Firebase test numbers (Authentication → Phone → test numbers). For these
+  /// the app skips Play Integrity / reCAPTCHA so cloud devices, emulators and
+  /// store reviewers never see a browser check. Firebase only honours the skip
+  /// for numbers configured as test numbers, so real numbers are unaffected.
+  static const otpTestNumbers = {'+919999911111'};
+
   /// Show the simulated live-tracking screen after "Confirm Ride". Real trips
   /// are booked in the provider's app (Uber/Ola/Rapido) via deep link, so this
   /// is off by default and only meant for demos.
