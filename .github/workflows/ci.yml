@@ -42,6 +42,16 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter build ios --release --no-codesign --build-number=${{ github.run_number }}
+      # iPhone simulator build (no Apple account needed) — upload the zip to
+      # appetize.io to run Tarajuu on a virtual iPhone in the browser.
+      - name: Build iOS simulator app
+        run: |
+          flutter build ios --simulator --debug --build-number=${{ github.run_number }}
+          cd build/ios/iphonesimulator && zip -qry "$RUNNER_TEMP/tarajuu-ios-simulator.zip" Runner.app
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tarajuu-ios-simulator
+          path: ${{ runner.temp }}/tarajuu-ios-simulator.zip
       - name: App Store secrets present?
         id: asc
         run: |
