@@ -93,7 +93,10 @@ jobs:
           echo "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > android/upload-keystore.jks
           echo "$KEY_PROPERTIES" > android/key.properties
       # API_BASE defaults to production (lib/config.dart); a repo variable overrides it.
-      - run: flutter build apk --release ${{ vars.API_BASE && format('--dart-define=API_BASE={0}', vars.API_BASE) || '' }}
+      # versionCode = CI run number, so every build can be uploaded to Google Play.
+      - run: flutter build apk --release --build-number=${{ github.run_number }} ${{ vars.API_BASE && format('--dart-define=API_BASE={0}', vars.API_BASE) || '' }}
+      - name: Build Play Store bundle (AAB)
+        run: flutter build appbundle --release --build-number=${{ github.run_number }} ${{ vars.API_BASE && format('--dart-define=API_BASE={0}', vars.API_BASE) || '' }}
       # Must match the SHA-1 registered in Firebase (8B:39:DA:CD:…:77:CB) or phone OTP fails.
       - name: Show signing certificate
         run: |
@@ -104,6 +107,10 @@ jobs:
         with:
           name: tarajuu-apk
           path: app/build/app/outputs/flutter-apk/app-release.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tarajuu-play-aab
+          path: app/build/app/outputs/bundle/release/app-release.aab
       # Firebase Test Lab pair: app + instrumentation APK running integration_test/app_test.dart.
       - name: Build Test Lab APKs
         working-directory: app/android
