@@ -68,6 +68,9 @@ flutter {
 }
 
 dependencies {
+    // reCAPTCHA Enterprise: lets Firebase phone auth verify the device invisibly
+    // in-app (no browser "I'm not a robot" redirect), incl. sideloaded APKs.
+    implementation("com.google.android.recaptcha:recaptcha:18.7.1")
     // Firebase Test Lab instrumentation (integration_test/app_test.dart)
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test:rules:1.6.1")

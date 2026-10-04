@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -24,6 +25,13 @@ Future<void> main() async {
   try {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
     firebaseReady = true;
+    // Fetch the project's reCAPTCHA Enterprise config so phone OTP uses the
+    // invisible in-app check instead of the browser reCAPTCHA page.
+    try {
+      await FirebaseAuth.instance.initializeRecaptchaConfig();
+    } catch (e) {
+      debugPrint('reCAPTCHA config unavailable: $e');
+    }
   } catch (e) {
     debugPrint('Firebase not configured: $e');
   }
