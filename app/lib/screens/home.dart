@@ -271,7 +271,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           SizedBox(
-            height: 182,
+            height: 92 + MediaQuery.textScalerOf(context).scale(92),
             child: Builder(builder: (_) {
               final items = _strip ?? [];
               if (items.isEmpty && _stripLoading) {

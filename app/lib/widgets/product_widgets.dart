@@ -102,7 +102,7 @@ class ProductTile extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(8, 7, 8, 9),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               SizedBox(
-                height: 26,
+                height: MediaQuery.textScalerOf(context).scale(9.5) * 1.35 * 2 + 2,
                 child: Text(p.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: pop(9.5, w: FontWeight.w600, c: const Color(0xFF333333), h: 1.35)),
               ),
               const SizedBox(height: 3),
@@ -150,7 +150,7 @@ class MiniProduct extends StatelessWidget {
                 ),
                 const SizedBox(height: 5),
                 SizedBox(
-                  height: 22,
+                  height: MediaQuery.textScalerOf(context).scale(8.5) * 1.3 * 2 + 2,
                   child: Text(p.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: pop(8.5, w: FontWeight.w600, c: const Color(0xFF333333), h: 1.3)),
                 ),
                 const SizedBox(height: 2),

@@ -289,7 +289,8 @@ class _ShopScreenState extends State<ShopScreen> {
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(12, 0, 12, 14),
                   sliver: SliverGrid.builder(
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisSpacing: 8, crossAxisSpacing: 8, mainAxisExtent: 206),
+                    // Tile height grows with the text scale so two-line titles never clip.
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisSpacing: 8, crossAxisSpacing: 8, mainAxisExtent: 96 + MediaQuery.textScalerOf(context).scale(112)),
                     itemCount: _sorted.length,
                     itemBuilder: (_, i) {
                       final p = _sorted[i];

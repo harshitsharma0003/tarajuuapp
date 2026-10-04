@@ -14,7 +14,11 @@ class AppUser {
   Map<String, dynamic> toJson() => {'id': id, 'phone': phone, 'name': name, 'email': email};
 
   String get displayName => (name?.isNotEmpty ?? false) ? name! : (phone ?? 'Tarajuu user');
-  String get initial => displayName.trim().isEmpty ? 'T' : displayName.trim()[0].toUpperCase();
+  /// First letter of the name for avatars; 'T' when there's no name (e.g. "+91…").
+  String get initial {
+    final m = RegExp(r'[A-Za-zऀ-ॿ]').firstMatch(name ?? '');
+    return m == null ? 'T' : m.group(0)!.toUpperCase();
+  }
   String get contact {
     final p = phone;
     if (p != null && p.startsWith('+91') && p.length == 13) return '+91 ${p.substring(3, 8)} ${p.substring(8)}';
