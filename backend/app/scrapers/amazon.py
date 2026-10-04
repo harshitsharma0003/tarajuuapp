@@ -27,12 +27,30 @@ def _text(node, sel: str) -> str | None:
     return n.text(strip=True) if n else None
 
 
+def _title_and_brand(item) -> tuple[str | None, str | None]:
+    """Newer result cards split brand and product name into two <h2>s (the name's
+    clean copy is in aria-label, sometimes prefixed "Sponsored Ad - ")."""
+    heads = item.css("h2")
+    if not heads:
+        return None, None
+    name_node = next((h for h in heads if h.attributes.get("aria-label")), heads[-1])
+    name = (name_node.attributes.get("aria-label") or name_node.text(strip=True)).strip()
+    name = re.sub(r"^Sponsored Ad\s*[-–]\s*", "", name)
+    brand = None
+    if len(heads) > 1:
+        first = heads[0].text(strip=True)
+        if first and first != name and len(first) <= 40:
+            brand = first
+    title = name if not brand or name.lower().startswith(brand.lower()) else f"{brand} {name}"
+    return title or None, brand
+
+
 def parse_search(html: str, limit: int = 12) -> list[Listing]:
     tree = HTMLParser(html)
     out: list[Listing] = []
     for item in tree.css('div[data-component-type="s-search-result"]'):
         asin = item.attributes.get("data-asin")
-        title = _text(item, "h2")
+        title, brand = _title_and_brand(item)
         if not asin or not title:
             continue
         price = parse_int(_text(item, "span.a-price:not(.a-text-price) span.a-offscreen"))
@@ -50,6 +68,7 @@ def parse_search(html: str, limit: int = 12) -> list[Listing]:
             reviews=parse_int(rating_label.attributes.get("aria-label")) if rating_label else None,
             image=img.attributes.get("src") if img else None,
             url=product_url(asin),
+            brand=brand,
         ))
         if len(out) >= limit:
             break

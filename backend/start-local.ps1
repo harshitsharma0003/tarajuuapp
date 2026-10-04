@@ -36,6 +36,9 @@ $domain = $null
 $m = Select-String -Path "$backend\.env" -Pattern '^NGROK_DOMAIN=(.+)$' -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($m) { $domain = $m.Matches[0].Groups[1].Value.Trim() }
 if ($domain -and -not (Get-Process ngrok -ErrorAction SilentlyContinue)) {
+    # ngrok here is the sandboxed Store (MSIX) build and can't write to arbitrary
+    # paths, so it logs to stdout and PowerShell captures that into the file.
     Start-Process -WindowStyle Hidden -FilePath 'ngrok' `
-        -ArgumentList @('http', '8000', "--url=https://$domain", '--log', "`"$data\ngrok.log`"")
+        -ArgumentList @('http', '8000', "--url=https://$domain", '--log', 'stdout', '--log-format', 'logfmt') `
+        -RedirectStandardOutput "$data\ngrok.log"
 }

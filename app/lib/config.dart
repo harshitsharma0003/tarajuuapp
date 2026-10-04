@@ -2,9 +2,11 @@
 ///
 ///   flutter run --dart-define=API_BASE=http://10.0.2.2:8000/api
 class Config {
-  /// Backend base URL. Defaults to the production API on the GCP VM; override
-  /// for local work, e.g. --dart-define=API_BASE=http://10.0.2.2:8000/api
-  static const apiBase = String.fromEnvironment('API_BASE', defaultValue: 'https://34-133-147-216.sslip.io/api');
+  /// Backend base URL. Defaults to the backend running on the dev PC, exposed
+  /// through ngrok (the account's fixed free domain). The GCP VM is parked;
+  /// its URL was https://34-133-147-216.sslip.io/api. Override with
+  /// --dart-define=API_BASE=... (e.g. http://10.0.2.2:8000/api for an emulator).
+  static const apiBase = String.fromEnvironment('API_BASE', defaultValue: 'https://amused-chapter-unbitten.ngrok-free.dev/api');
 
   /// Web OAuth client ID from Firebase (needed by Google sign-in on Android
   /// if it cannot be read from google-services.json).
