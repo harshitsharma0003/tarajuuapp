@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 from ..config import get_settings
 from ..db import pool
-from ..scrapers import amazon, flipkart
+from ..scrapers import amazon, flipkart, flipkart_html
 from ..scrapers.common import Listing, SourceBlocked
 from . import matcher
 from .agent_queue import AgentOffline
@@ -39,8 +39,10 @@ async def _fetch_listings(query: str) -> tuple[dict, list[Listing], list[Listing
     tasks = {}
     if s.amazon_enabled:
         tasks["amazon"] = _run_source("amazon", amazon.search(query))
-    if s.flipkart_enabled:
+    if s.flipkart_affiliate:
         tasks["flipkart"] = _run_source("flipkart", flipkart.search(query))
+    elif s.flipkart_scrape:
+        tasks["flipkart"] = _run_source("flipkart", flipkart_html.search(query))
     results = dict(zip(tasks, await asyncio.gather(*tasks.values())))
     sources = {
         "amazon": results["amazon"][0] if "amazon" in results else "disabled",
@@ -239,7 +241,7 @@ async def detail(product_id: str) -> dict | None:
         jobs = {}
         if row["amazon_asin"] and s.amazon_enabled:
             jobs["amazon"] = amazon.product(row["amazon_asin"])
-        if row["flipkart_pid"] and s.flipkart_enabled:
+        if row["flipkart_pid"] and s.flipkart_affiliate:
             jobs["flipkart"] = flipkart.product(row["flipkart_pid"])
         results = dict(zip(jobs, await asyncio.gather(*jobs.values(), return_exceptions=True)))
 

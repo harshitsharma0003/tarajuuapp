@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     amazon_partner_tag: str = ""  # optional Associates tag appended to buy links
     flipkart_affiliate_id: str = ""
     flipkart_affiliate_token: str = ""
+    # Scrape flipkart.com search HTML directly (used when no affiliate keys are set).
+    flipkart_scrape: bool = False
     # "direct": the API server fetches amazon.in itself.
     # "agent": jobs are queued and a scrape agent (python -m app.agent) running on
     # an ordinary internet connection claims them — for cloud IPs Amazon rejects.
@@ -56,8 +58,12 @@ class Settings(BaseSettings):
     contact_email: str = "support@tarajuu.app"  # sent in User-Agent to OSM services
 
     @property
-    def flipkart_enabled(self) -> bool:
+    def flipkart_affiliate(self) -> bool:
         return bool(self.flipkart_affiliate_id and self.flipkart_affiliate_token)
+
+    @property
+    def flipkart_enabled(self) -> bool:
+        return self.flipkart_affiliate or self.flipkart_scrape
 
     @property
     def uber_enabled(self) -> bool:
