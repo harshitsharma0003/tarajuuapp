@@ -77,6 +77,8 @@ jobs:
 
   android:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # publish the APK as a GitHub Release (public download link)
     defaults:
       run:
         working-directory: app
@@ -121,6 +123,19 @@ jobs:
         with:
           name: tarajuu-play-aab
           path: app/build/app/outputs/bundle/release/app-release.aab
+      # Public install link for testers (no GitHub login needed):
+      # https://github.com/<owner>/<repo>/releases/latest/download/tarajuu.apk
+      - name: Publish APK as a GitHub Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp build/app/outputs/flutter-apk/app-release.apk "$RUNNER_TEMP/tarajuu.apk"
+          gh release create "android-build-${{ github.run_number }}" "$RUNNER_TEMP/tarajuu.apk" \
+            --repo "${{ github.repository }}" --target "${{ github.sha }}" --latest \
+            --title "Tarajuu Android build ${{ github.run_number }}" \
+            --notes "Install on Android: open this link on the phone and allow installing from your browser. Commit ${{ github.sha }}."
+          echo "::notice title=APK download::https://github.com/${{ github.repository }}/releases/latest/download/tarajuu.apk"
       # Firebase Test Lab pair: app + instrumentation APK running integration_test/app_test.dart.
       - name: Build Test Lab APKs
         working-directory: app/android
