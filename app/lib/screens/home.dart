@@ -412,7 +412,13 @@ class _DarkHero extends StatelessWidget {
                 onTap: () => Navigator.of(context).pushNamed(Routes.drawer),
                 child: SvgPicture.string(menu, width: 17, height: 17),
               ),
-              Expanded(child: Center(child: Text('⚖️ Tarajuu', style: nun(19, w: FontWeight.w900, c: Colors.white, ls: .5)))),
+              Expanded(
+                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  const BrandMark(size: 30),
+                  const SizedBox(width: 6),
+                  Text('Tarajuu', style: nun(19, w: FontWeight.w900, c: Colors.white, ls: .5)),
+                ]),
+              ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
                 decoration: BoxDecoration(

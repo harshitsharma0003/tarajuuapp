@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 import '../routes.dart';
 import '../theme.dart';
-import 'svgs.dart';
 
 void toast(BuildContext context, String msg) {
   ScaffoldMessenger.of(context)
@@ -11,10 +9,19 @@ void toast(BuildContext context, String msg) {
     ..showSnackBar(SnackBar(content: Text(msg), duration: const Duration(milliseconds: 2200)));
 }
 
-/// White rounded square with the balance-scale mark (.auth-logo / .sp-logo-box).
+/// The Tarajuu brand mark (orange balance scale with ₹ coins).
+class BrandMark extends StatelessWidget {
+  final double size;
+  const BrandMark({super.key, this.size = 40});
+  @override
+  Widget build(BuildContext context) =>
+      Image.asset('assets/brand/tarajuu_mark.png', width: size, height: size, filterQuality: FilterQuality.medium);
+}
+
+/// White rounded square with the brand mark (.auth-logo / .sp-logo-box).
 class LogoBox extends StatelessWidget {
   final double size, radius, icon;
-  const LogoBox({super.key, this.size = 60, this.radius = 16, this.icon = 34});
+  const LogoBox({super.key, this.size = 60, this.radius = 16, this.icon = 48});
   @override
   Widget build(BuildContext context) => Container(
         width: size,
@@ -25,7 +32,7 @@ class LogoBox extends StatelessWidget {
           boxShadow: const [BoxShadow(color: Color(0x26000000), blurRadius: 14, offset: Offset(0, 3))],
         ),
         alignment: Alignment.center,
-        child: SvgPicture.string(logoMark, width: icon, height: icon),
+        child: BrandMark(size: icon),
       );
 }
 

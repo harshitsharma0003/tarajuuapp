@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 import '../routes.dart';
 import '../state/session.dart';
 import '../theme.dart';
-import '../widgets/balance_scale.dart';
+import '../widgets/common.dart';
 
 /// Phase 1 (0–2.2s): ₹ pops, rings ripple out, everything fades.
 /// Phase 2 (2.0–2.6s): balance scale, title and CTA fade up.
@@ -117,7 +117,24 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                       Positioned(right: MediaQuery.sizeOf(context).width * .08, top: MediaQuery.sizeOf(context).height * .40 - bob, child: _coin('⚡', 26, 15, .1)),
                       Center(
                         child: Column(mainAxisSize: MainAxisSize.min, children: [
-                          Transform.translate(offset: Offset(0, bob), child: const BalanceScale()),
+                          Transform.translate(
+                            offset: Offset(0, bob),
+                            // Brand mark in a white disc, rocking like the prototype's scale.
+                            child: Transform.rotate(
+                              angle: math.sin(_loop.value * 2 * math.pi * 2) * 0.12,
+                              child: Container(
+                                width: 132,
+                                height: 132,
+                                padding: const EdgeInsets.all(14),
+                                decoration: const BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [BoxShadow(color: Color(0x33000000), blurRadius: 20, offset: Offset(0, 6))],
+                                ),
+                                child: const BrandMark(size: 104),
+                              ),
+                            ),
+                          ),
                           const SizedBox(height: 18),
                           Text('Tarajuu', style: nun(40, w: FontWeight.w900, c: Colors.white, ls: 2)),
                           const SizedBox(height: 4),
