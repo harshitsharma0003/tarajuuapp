@@ -18,7 +18,7 @@ class ConfirmScreen extends StatelessWidget {
   /// Hand off to the provider's own app with the route pre-filled (rider can pay cash there).
   Future<void> _openInApp(BuildContext context) async {
     final f = args.fare;
-    final cheapest = args.estimate.fares.first.price == f.price;
+    final cheapest = args.estimate.fares.every((o) => f.price <= o.price);
     if (context.read<Session>().signedIn) {
       Api.instance.buyClick(kind: 'ride', source: f.provider, saved: cheapest ? args.estimate.savings : 0).ignore();
     }
@@ -39,7 +39,7 @@ class ConfirmScreen extends StatelessWidget {
     final f = args.fare;
     try {
       final bookingId = await Api.instance.bookRide(args.from, args.to, f);
-      final cheapest = args.estimate.fares.first.price == f.price;
+      final cheapest = args.estimate.fares.every((o) => f.price <= o.price);
       Api.instance.buyClick(kind: 'ride', source: f.provider, saved: cheapest ? args.estimate.savings : 0).ignore();
       if (context.mounted) {
         Navigator.of(context).pushReplacementNamed(Routes.tracking, arguments: TrackingArgs(args, bookingId: bookingId));
@@ -52,7 +52,7 @@ class ConfirmScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final f = args.fare, est = args.estimate;
-    final cheapest = est.fares.length > 1 && est.fares.first.price == f.price;
+    final cheapest = est.fares.length > 1 && est.fares.every((o) => f.price <= o.price);
     Widget label(String t) => Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: Text(t.toUpperCase(), style: pop(10, w: FontWeight.w700, c: T.gray, ls: .5)),

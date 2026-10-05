@@ -53,8 +53,9 @@ class Settings(BaseSettings):
     # Test apps on the Uber dashboard authenticate against the sandbox login.
     uber_auth_url: str = "https://auth.uber.com/oauth/v2/token"
     uber_sandbox_auth_url: str = "https://sandbox-login.uber.com/oauth/v2/token"
-    # Comma-separated ride providers to compare. Only "uber" for now.
-    ride_providers: str = "uber"
+    # Ride providers to compare, in display order. Uber = live API (or rate card
+    # until the scope is granted); Rapido/Ola = rate-card estimates ("est.").
+    ride_providers: str = "uber,rapido"
     osrm_base: str = "https://router.project-osrm.org"
     photon_base: str = "https://photon.komoot.io"
     contact_email: str = "support@tarajuu.app"  # sent in User-Agent to OSM services

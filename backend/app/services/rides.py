@@ -71,7 +71,8 @@ def deeplink(provider: str, a: dict, b: dict, product_id: str | None = None) -> 
         return "https://book.olacabs.com/?" + urlencode({
             "serviceType": "p2p", "lat": a["lat"], "lng": a["lon"], "drop_lat": b["lat"], "drop_lng": b["lon"],
         })
-    return "https://www.rapido.bike/"
+    # Rapido has no public deep link with a route; open its app (via Play).
+    return "https://play.google.com/store/apps/details?id=com.rapido.passenger"
 
 
 def rate_card_fare(provider: str, ride_type: str, km: float, minutes: int) -> dict:
@@ -122,7 +123,10 @@ async def estimate(a: dict, b: dict, ride_type: str) -> dict:
         fares.append({"provider": provider, **fare, "durationMin": duration, "pickupEtaMin": eta,
                       "distanceKm": km, "estimated": estimated, "deeplink": link})
 
-    fares.sort(key=lambda f: f["price"])
+    # Keep the configured provider order (Uber first); flag the cheapest instead.
+    prices = [f["price"] for f in fares]
+    for f in fares:
+        f["cheapest"] = len(fares) > 1 and f["price"] == min(prices)
     return {
         "type": ride_type,
         "label": RIDE_TYPES[ride_type]["label"],
@@ -131,6 +135,6 @@ async def estimate(a: dict, b: dict, ride_type: str) -> dict:
         "durationMin": mins,
         "route": rt["geometry"],
         "fares": fares,
-        "savings": fares[-1]["price"] - fares[0]["price"],
+        "savings": max(prices) - min(prices) if prices else 0,
         "uberStatus": uber_status,
     }

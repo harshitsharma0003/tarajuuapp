@@ -392,7 +392,9 @@ class _RidesScreenState extends State<RidesScreen> {
       ),
     ];
     if (!_fast && est != null) {
-      final minP = est.fares.first.price;
+      // Fares come in display order (Uber first); the cheapest one gets the badge.
+      final minP = est.fares.map((f) => f.price).reduce((a, b) => a < b ? a : b);
+      final cheapestFare = est.fares.firstWhere((f) => f.price == minP);
       // "Cheapest" and the savings banner only make sense when comparing providers.
       final comparing = est.fares.length > 1;
       for (final f in est.fares) {
@@ -405,7 +407,7 @@ class _RidesScreenState extends State<RidesScreen> {
           child: Row(children: [
             const Text('🏆', style: TextStyle(fontSize: 15)),
             const SizedBox(width: 8),
-            Expanded(child: Text('${est.fares.first.product} saves you ₹${est.savings} on this trip!', style: pop(11, w: FontWeight.w700, c: T.green))),
+            Expanded(child: Text('${cheapestFare.product} saves you ₹${est.savings} on this trip!', style: pop(11, w: FontWeight.w700, c: T.green))),
           ]),
         ));
       }
