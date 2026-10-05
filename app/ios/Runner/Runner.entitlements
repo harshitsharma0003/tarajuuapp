@@ -4,6 +4,6 @@
 <dict>
 	<!-- Silent push lets Firebase verify the phone for OTP without a reCAPTCHA page. -->
 	<key>aps-environment</key>
-	<string>production</string>
+	<string>development</string>
 </dict>
 </plist>
