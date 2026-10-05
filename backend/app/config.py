@@ -53,6 +53,8 @@ class Settings(BaseSettings):
     # Test apps on the Uber dashboard authenticate against the sandbox login.
     uber_auth_url: str = "https://auth.uber.com/oauth/v2/token"
     uber_sandbox_auth_url: str = "https://sandbox-login.uber.com/oauth/v2/token"
+    # Comma-separated ride providers to compare. Only "uber" for now.
+    ride_providers: str = "uber"
     osrm_base: str = "https://router.project-osrm.org"
     photon_base: str = "https://photon.komoot.io"
     contact_email: str = "support@tarajuu.app"  # sent in User-Agent to OSM services

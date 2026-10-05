@@ -103,7 +103,8 @@ async def estimate(a: dict, b: dict, ride_type: str) -> dict:
             uber_status = "error"
 
     fares = []
-    for provider in ("uber", "rapido", "ola"):
+    providers = [p.strip() for p in get_settings().ride_providers.split(",") if p.strip() in RATE_CARDS] or ["uber"]
+    for provider in providers:
         if provider == "uber" and uber_live:
             fare = {"product": uber_live["name"], "price": uber_live["low"],
                     "priceLow": uber_live["low"], "priceHigh": uber_live["high"]}

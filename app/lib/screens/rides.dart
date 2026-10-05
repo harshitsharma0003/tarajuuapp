@@ -393,18 +393,22 @@ class _RidesScreenState extends State<RidesScreen> {
     ];
     if (!_fast && est != null) {
       final minP = est.fares.first.price;
+      // "Cheapest" and the savings banner only make sense when comparing providers.
+      final comparing = est.fares.length > 1;
       for (final f in est.fares) {
-        out.add(_FareCard(f, cheapest: f.price == minP, onBook: () => _openConfirm(est, f)));
+        out.add(_FareCard(f, cheapest: comparing && f.price == minP, onBook: () => _openConfirm(est, f)));
       }
-      out.add(Container(
-        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
-        decoration: BoxDecoration(color: T.greenBg, borderRadius: BorderRadius.circular(10)),
-        child: Row(children: [
-          const Text('🏆', style: TextStyle(fontSize: 15)),
-          const SizedBox(width: 8),
-          Expanded(child: Text('${est.fares.first.product} saves you ₹${est.savings} on this trip!', style: pop(11, w: FontWeight.w700, c: T.green))),
-        ]),
-      ));
+      if (comparing && est.savings > 0) {
+        out.add(Container(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+          decoration: BoxDecoration(color: T.greenBg, borderRadius: BorderRadius.circular(10)),
+          child: Row(children: [
+            const Text('🏆', style: TextStyle(fontSize: 15)),
+            const SizedBox(width: 8),
+            Expanded(child: Text('${est.fares.first.product} saves you ₹${est.savings} on this trip!', style: pop(11, w: FontWeight.w700, c: T.green))),
+          ]),
+        ));
+      }
       if (est.uberStatus == 'not_serviced' || est.uberStatus == 'no_product') {
         out.add(Padding(
           padding: const EdgeInsets.only(top: 8),

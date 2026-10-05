@@ -52,7 +52,7 @@ class ConfirmScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final f = args.fare, est = args.estimate;
-    final cheapest = est.fares.first.price == f.price;
+    final cheapest = est.fares.length > 1 && est.fares.first.price == f.price;
     Widget label(String t) => Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: Text(t.toUpperCase(), style: pop(10, w: FontWeight.w700, c: T.gray, ls: .5)),
