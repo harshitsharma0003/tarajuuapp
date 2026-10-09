@@ -28,6 +28,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _bad = false, _busy = false, _gBusy = false;
 
   Future<void> _sendOtp() async {
+    if (_busy || _gBusy) return; // one OTP request at a time
     final p = _phone.text.trim();
     if (p.length < 10) {
       setState(() => _bad = true);
@@ -41,7 +42,9 @@ class _LoginScreenState extends State<LoginScreen> {
       if (autoVerified) {
         Navigator.of(context).pushNamedAndRemoveUntil(Routes.home, (_) => false);
       } else {
-        Navigator.of(context).pushNamed(Routes.otp);
+        // Stay disabled while the OTP screen is open; re-enable only if the
+        // user comes back (e.g. "Change number").
+        await Navigator.of(context).pushNamed(Routes.otp);
       }
     } catch (e) {
       if (mounted) toast(context, _err(e));
@@ -82,12 +85,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 Row(children: [
                   const FlagBox(),
                   const SizedBox(width: 7),
-                  Expanded(child: _PhoneField(_phone, error: _bad, onSubmit: _sendOtp)),
+                  Expanded(child: _PhoneField(_phone, error: _bad, onSubmit: _sendOtp, enabled: !_busy)),
                 ]),
                 const SizedBox(height: 18),
-                AmberButton('Send OTP →', onPressed: _sendOtp, busy: _busy),
+                AmberButton('Send OTP →', onPressed: _busy || _gBusy ? null : _sendOtp, busy: _busy),
                 const _OrDivider(),
-                _GoogleButton(onPressed: _gBusy ? null : _google, busy: _gBusy),
+                _GoogleButton(onPressed: _gBusy || _busy ? null : _google, busy: _gBusy),
                 const SizedBox(height: 14),
                 Center(
                   child: Text.rich(TextSpan(style: pop(12, c: T.gray), children: [
@@ -108,12 +111,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
 class _PhoneField extends StatelessWidget {
   final TextEditingController c;
-  final bool error;
+  final bool error, enabled;
   final VoidCallback? onSubmit;
-  const _PhoneField(this.c, {this.error = false, this.onSubmit});
+  const _PhoneField(this.c, {this.error = false, this.onSubmit, this.enabled = true});
   @override
   Widget build(BuildContext context) => TextField(
         controller: c,
+        enabled: enabled,
         keyboardType: TextInputType.phone,
         maxLength: 10,
         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
@@ -236,10 +240,14 @@ class _OtpScreenState extends State<OtpScreen> {
     }
   }
 
+  bool _resending = false;
+
   Future<void> _resend() async {
+    if (_resending || _busy || _resendIn > 0) return;
     final s = context.read<Session>();
     final phone = s.pendingPhone;
     if (phone == null) return Navigator.of(context).pop();
+    setState(() => _resending = true);
     try {
       await s.sendOtp(phone.substring(3), resend: true);
       if (mounted) {
@@ -248,6 +256,8 @@ class _OtpScreenState extends State<OtpScreen> {
       }
     } catch (e) {
       if (mounted) toast(context, _err(e));
+    } finally {
+      if (mounted) setState(() => _resending = false);
     }
   }
 
@@ -304,7 +314,9 @@ class _OtpScreenState extends State<OtpScreen> {
               Center(
                 child: Text.rich(TextSpan(style: pop(12, c: T.gray), children: [
                   const TextSpan(text: "Didn't receive? "),
-                  _resendIn > 0
+                  _resending
+                      ? TextSpan(text: 'Sending…', style: pop(12, w: FontWeight.w600, c: T.gray))
+                      : _resendIn > 0
                       ? TextSpan(text: 'Resend in ${_resendIn}s', style: pop(12, w: FontWeight.w600, c: T.gray))
                       : TextSpan(
                           text: 'Resend OTP',
@@ -343,6 +355,7 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _accepted = false, _busy = false, _badPhone = false;
 
   Future<void> _go() async {
+    if (_busy) return; // one OTP request at a time
     if (!_accepted) {
       await showDialog<void>(
         context: context,
@@ -369,7 +382,7 @@ class _SignupScreenState extends State<SignupScreen> {
       if (auto) {
         Navigator.of(context).pushNamedAndRemoveUntil(Routes.home, (_) => false);
       } else {
-        Navigator.of(context).pushNamed(Routes.otp);
+        await Navigator.of(context).pushNamed(Routes.otp);
       }
     } catch (e) {
       if (mounted) toast(context, _err(e));
@@ -462,7 +475,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ]),
               ),
-              AmberButton('Create Account & Get OTP', onPressed: _go, busy: _busy),
+              AmberButton('Create Account & Get OTP', onPressed: _busy ? null : _go, busy: _busy),
               const SizedBox(height: 14),
               Center(
                 child: Text.rich(TextSpan(style: pop(12, c: T.gray), children: [

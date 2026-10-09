@@ -23,6 +23,20 @@ class Session extends ChangeNotifier {
   String? _verificationId;
   int? _resendToken;
   String? pendingPhone;
+
+  // OTP de-duplication: one request at a time, and no new SMS to the same
+  // number within [otpReuseWindow] — the existing code is reused instead.
+  static const otpReuseWindow = Duration(seconds: 60);
+  bool _sendingOtp = false;
+  String? _codeSentTo;
+  DateTime? _codeSentAt;
+
+  /// True when a code for [phone] (+91…) was sent recently and can still be entered.
+  bool hasRecentCode(String phone) =>
+      _verificationId != null &&
+      _codeSentTo == phone &&
+      _codeSentAt != null &&
+      DateTime.now().difference(_codeSentAt!) < otpReuseWindow;
   String? pendingName, pendingEmail;
 
   bool get signedIn => user != null && Api.instance.token != null;
@@ -74,7 +88,25 @@ class Session extends ChangeNotifier {
   /// returns true).
   Future<bool> sendOtp(String tenDigits, {String? name, String? email, bool resend = false}) async {
     _requireFirebase();
-    pendingPhone = '+91$tenDigits';
+    final phone = '+91$tenDigits';
+    if (_sendingOtp) throw Exception('Sending your OTP… please wait.');
+    if (!resend && hasRecentCode(phone)) {
+      // Code already on its way to this number — reuse it, don't send another SMS.
+      pendingPhone = phone;
+      if (name != null) pendingName = name;
+      if (email != null) pendingEmail = email;
+      return false;
+    }
+    _sendingOtp = true;
+    try {
+      return await _requestCode(phone, name: name, email: email, resend: resend);
+    } finally {
+      _sendingOtp = false;
+    }
+  }
+
+  Future<bool> _requestCode(String phone, {String? name, String? email, required bool resend}) async {
+    pendingPhone = phone;
     // No robot check for Firebase test numbers; real numbers use silent Play Integrity.
     await FirebaseAuth.instance.setSettings(
       appVerificationDisabledForTesting: Config.otpTestNumbers.contains(pendingPhone),
@@ -101,6 +133,8 @@ class Session extends ChangeNotifier {
       codeSent: (id, token) {
         _verificationId = id;
         _resendToken = token;
+        _codeSentTo = phone;
+        _codeSentAt = DateTime.now();
         if (!done.isCompleted) done.complete(false);
       },
       codeAutoRetrievalTimeout: (id) => _verificationId = id,
@@ -174,7 +208,7 @@ class Session extends ChangeNotifier {
         'invalid-phone-number' => 'That mobile number looks invalid.',
         'invalid-verification-code' => 'Wrong OTP. Please check and try again.',
         'session-expired' => 'OTP expired. Please resend.',
-        'too-many-requests' => 'Too many attempts. Please try again later.',
+        'too-many-requests' => 'Too many OTP requests for this number. Please wait about an hour and try again.',
         'network-request-failed' => 'No internet connection.',
         _ => e.message ?? 'Sign-in failed (${e.code}).',
       };
