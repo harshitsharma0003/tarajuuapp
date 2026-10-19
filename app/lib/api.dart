@@ -38,7 +38,13 @@ class Api {
     } catch (_) {
       throw ApiException(0, "Can't reach Tarajuu servers. Check your connection.");
     }
-    final body = r.body.isEmpty ? null : jsonDecode(utf8.decode(r.bodyBytes));
+    dynamic body;
+    try {
+      body = r.body.isEmpty ? null : jsonDecode(utf8.decode(r.bodyBytes));
+    } on FormatException {
+      // Non-JSON (e.g. the tunnel's HTML error page when the server is down).
+      throw ApiException(r.statusCode, 'Tarajuu servers are offline right now. Please try again in a few minutes.');
+    }
     if (r.statusCode >= 400) {
       final detail = body is Map ? body['detail'] : null;
       throw ApiException(r.statusCode, detail is String ? detail : 'Something went wrong (${r.statusCode})');
