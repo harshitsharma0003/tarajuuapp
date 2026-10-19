@@ -137,9 +137,12 @@ class SearchResult {
 class Place {
   final String name, subtitle;
   final double lat, lon;
-  Place({required this.name, this.subtitle = '', required this.lat, required this.lon});
-  factory Place.fromJson(Map<String, dynamic> j) =>
-      Place(name: j['name'], subtitle: j['subtitle'] ?? '', lat: _dbl(j['lat'])!, lon: _dbl(j['lon'])!);
+  /// Google place id. Autocomplete suggestions have it but no coordinates yet.
+  final String? placeId;
+  Place({required this.name, this.subtitle = '', required this.lat, required this.lon, this.placeId});
+  factory Place.fromJson(Map<String, dynamic> j) => Place(
+      name: j['name'], subtitle: j['subtitle'] ?? '', lat: _dbl(j['lat']) ?? 0, lon: _dbl(j['lon']) ?? 0, placeId: j['placeId']);
+  bool get needsDetails => placeId != null && lat == 0 && lon == 0;
   Map<String, dynamic> toJson() => {'name': name, 'lat': lat, 'lon': lon};
   String get label => subtitle.isEmpty ? name : '$name, $subtitle';
 }

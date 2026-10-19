@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -86,8 +87,17 @@ class _RidesScreenState extends State<RidesScreen> {
     _fromCtrl.text = p.name;
   }
 
+  /// Google bills autocomplete keystrokes + the final place lookup as one
+  /// session when they share this token; a new one starts per field focus.
+  String? _placesSession;
+  static String _newSession() {
+    final r = Random.secure();
+    return List.generate(32, (_) => r.nextInt(16).toRadixString(16)).join();
+  }
+
   void _onFocus(String field, bool has) {
     if (has) {
+      _placesSession = _newSession();
       setState(() => _activeField = field);
       _query(field == 'from' ? _fromCtrl.text : _toCtrl.text);
     } else if (_activeField == field) {
@@ -110,7 +120,7 @@ class _RidesScreenState extends State<RidesScreen> {
     _debounce = Timer(const Duration(milliseconds: 350), () async {
       final here = context.read<LocationState>().current;
       try {
-        final res = await Api.instance.autocomplete(q.trim(), lat: here?.lat, lon: here?.lon);
+        final res = await Api.instance.autocomplete(q.trim(), lat: here?.lat, lon: here?.lon, session: _placesSession);
         if (mounted) setState(() => _sugg = res);
       } catch (_) {
         if (mounted) setState(() => _sugg = []);
@@ -119,9 +129,25 @@ class _RidesScreenState extends State<RidesScreen> {
     });
   }
 
-  void _pick(Place p) {
+  Future<void> _pick(Place p) async {
+    final field = _activeField;
+    if (p.needsDetails) {
+      // Google suggestion → fetch its coordinates before using it.
+      (field == 'from' ? _fromCtrl : _toCtrl).text = p.name;
+      setState(() => _sugg = []);
+      FocusScope.of(context).unfocus();
+      try {
+        p = await Api.instance.placeDetails(p.placeId!, session: _placesSession);
+      } on ApiException catch (e) {
+        if (mounted) toast(context, e.message);
+        return;
+      } finally {
+        _placesSession = null;
+      }
+      if (!mounted) return;
+    }
     setState(() {
-      if (_activeField == 'from') {
+      if (field == 'from') {
         _from = p;
         _fromCtrl.text = p.name;
       } else {
@@ -138,8 +164,12 @@ class _RidesScreenState extends State<RidesScreen> {
     final loc = context.read<LocationState>();
     if (loc.current == null) await loc.locate();
     if (!mounted) return;
-    if (loc.current == null) return toast(context, loc.error ?? 'Could not get your location');
-    _pick(loc.current!);
+    if (loc.current == null) {
+      // Same fix as the banner: permission dialog / GPS or app settings.
+      if (loc.issue != null && loc.issue != LocIssue.failed) return loc.fix();
+      return toast(context, loc.message ?? 'Could not get your location');
+    }
+    await _pick(loc.current!);
   }
 
   bool _ready() {
@@ -289,13 +319,10 @@ class _RidesScreenState extends State<RidesScreen> {
       child: Row(children: [
         const Text('📍', style: TextStyle(fontSize: 14)),
         const SizedBox(width: 8),
-        Expanded(child: Text('${loc.error}. Turn on location to auto-fill your pickup.', style: pop(10.5, c: T.amberDark, h: 1.4))),
+        Expanded(child: Text(loc.message!, style: pop(10.5, c: T.amberDark, h: 1.4))),
         TextButton(
-          onPressed: () async {
-            await loc.openSettings();
-            await loc.locate();
-          },
-          child: Text('Enable', style: pop(11, w: FontWeight.w700, c: T.amber)),
+          onPressed: loc.fix,
+          child: Text(loc.actionLabel, style: pop(11, w: FontWeight.w700, c: T.amber)),
         ),
       ]),
     );

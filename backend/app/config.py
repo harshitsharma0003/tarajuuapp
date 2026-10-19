@@ -58,6 +58,8 @@ class Settings(BaseSettings):
     ride_providers: str = "uber,rapido"
     osrm_base: str = "https://router.project-osrm.org"
     photon_base: str = "https://photon.komoot.io"
+    # Google Maps Platform key (Places API (New) + Geocoding API). Empty → free Photon/OSM search.
+    google_maps_api_key: str = ""
     contact_email: str = "support@tarajuu.app"  # sent in User-Agent to OSM services
 
     @property

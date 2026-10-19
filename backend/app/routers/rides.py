@@ -22,11 +22,21 @@ class EstimateReq(BaseModel):
 
 
 @router.get("/places/autocomplete")
-async def autocomplete(q: str = Query(..., min_length=2, max_length=100), lat: float | None = None, lon: float | None = None):
+async def autocomplete(q: str = Query(..., min_length=2, max_length=100), lat: float | None = None,
+                       lon: float | None = None, session: str | None = Query(None, max_length=64)):
     try:
-        return await geo.autocomplete(q, lat, lon)
+        return await geo.autocomplete(q, lat, lon, session)
     except Exception:  # noqa: BLE001
         raise HTTPException(502, "Place search is unavailable right now")
+
+
+@router.get("/places/details")
+async def place_details(placeId: str = Query(..., max_length=300), session: str | None = Query(None, max_length=64)):
+    """Coordinates for a Google autocomplete suggestion (same session token → billed as one session)."""
+    try:
+        return await geo.place_details(placeId, session)
+    except Exception:  # noqa: BLE001
+        raise HTTPException(502, "Could not load that place. Please pick it again.")
 
 
 @router.get("/places/reverse")

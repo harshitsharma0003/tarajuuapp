@@ -99,10 +99,13 @@ class Api {
   Future<ProductDetail> product(String id) async => ProductDetail.fromJson(await get('/products/$id'));
 
   // ── places & rides ──
-  Future<List<Place>> autocomplete(String q, {double? lat, double? lon}) async {
-    final j = await get('/places/autocomplete', {'q': q, 'lat': ?lat, 'lon': ?lon});
+  Future<List<Place>> autocomplete(String q, {double? lat, double? lon, String? session}) async {
+    final j = await get('/places/autocomplete', {'q': q, 'lat': ?lat, 'lon': ?lon, 'session': ?session});
     return [for (final p in j) Place.fromJson(p)];
   }
+
+  Future<Place> placeDetails(String placeId, {String? session}) async =>
+      Place.fromJson(await get('/places/details', {'placeId': placeId, 'session': ?session}));
 
   Future<Place> reverse(double lat, double lon) async => Place.fromJson(await get('/places/reverse', {'lat': lat, 'lon': lon}));
 

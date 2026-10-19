@@ -452,7 +452,7 @@ class _DarkHero extends StatelessWidget {
               ]),
               const SizedBox(height: 3),
               GestureDetector(
-                onTap: () => context.read<LocationState>().locate(),
+                onTap: () => context.read<LocationState>().fix(),
                 child: Row(children: [
                   Flexible(child: Text(address, maxLines: 1, overflow: TextOverflow.ellipsis, style: pop(16, w: FontWeight.w800, c: Colors.white))),
                   const SizedBox(width: 6),

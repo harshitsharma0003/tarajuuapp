@@ -46,4 +46,5 @@ async def health():
         "uberBooking": s.uber_enabled and s.uber_booking_enabled,
         "uberSandbox": s.uber_sandbox,
         "firebase": bool(s.firebase_project_id),
+        "places": "google" if s.google_maps_api_key else "photon",
     }
