@@ -78,7 +78,9 @@ async def _google_reverse(lat: float, lon: float) -> dict | None:
     parts = [p.strip() for p in results[0]["formatted_address"].split(",")]
     # Drop the trailing "State PIN, India" noise for a compact label.
     parts = [p for p in parts if p != "India"]
-    return {"name": parts[0], "subtitle": ", ".join(parts[1:4]), "lat": lat, "lon": lon}
+    # A bare house/block label ("BLOCK-D", "A-12") means little alone — add the area.
+    n = 2 if len(parts) > 2 and len(parts[0]) < 12 else 1
+    return {"name": ", ".join(parts[:n]), "subtitle": ", ".join(parts[n:n + 3]), "lat": lat, "lon": lon}
 
 
 async def autocomplete(q: str, lat: float | None = None, lon: float | None = None, session: str | None = None) -> list[dict]:
