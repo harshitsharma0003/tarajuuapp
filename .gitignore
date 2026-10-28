@@ -17,3 +17,6 @@ app/.dart_tool/
 
 # local scrape agent log
 backend/agent.log
+
+# cached Firebase public signing keys
+backend/.firebase_jwks.json
