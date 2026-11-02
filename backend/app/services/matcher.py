@@ -138,7 +138,8 @@ def _best_pair(ga: _Group, gf: _Group, use_images: bool) -> tuple[float, Listing
 
 async def match(amazon: list[Listing], flipkart: list[Listing],
                 use_images: bool = True) -> list[tuple[Listing | None, Listing | None]]:
-    """One (amazon, flipkart) tuple per tile, in relevance order. Either side may be None."""
+    """One (amazon, flipkart) tuple per tile: matched tiles first, each part in
+    relevance order. Either side may be None."""
     ga, gf = _group(amazon), _group(flipkart)
 
     if use_images:
@@ -176,8 +177,9 @@ async def match(amazon: list[Listing], flipkart: list[Listing],
     for j, y in enumerate(gf):
         if j not in used_f:
             tiles.append((y.rank, 1, None, y.cheapest()))
-    # Interleave both shops by rank; at equal rank, matched tiles first.
-    tiles.sort(key=lambda t: (t[0], t[1]))
+    # Products sold on both shops first (they carry a price comparison), then the
+    # rest; each section interleaves both shops by relevance rank.
+    tiles.sort(key=lambda t: (t[1], t[0]))
     return [(a, f) for _, _, a, f in tiles]
 
 

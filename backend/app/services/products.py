@@ -181,7 +181,10 @@ async def _load(ids: list) -> list[dict]:
     rows = await pool().fetch("SELECT * FROM products WHERE id = ANY($1::uuid[])", ids)
     # A row can lose both offers when a later search re-pairs its listings elsewhere.
     by_id = {r["id"]: r for r in rows if r["amazon_asin"] or r["flipkart_pid"]}
-    return [serialise(by_id[i]) for i in ids if i in by_id]
+    ordered = [by_id[i] for i in ids if i in by_id]
+    # On both shops first (stable, so relevance order holds within each part).
+    ordered.sort(key=lambda r: not (r["amazon_asin"] and r["flipkart_pid"]))
+    return [serialise(r) for r in ordered]
 
 
 # ───────────────────────── public API ─────────────────────────
