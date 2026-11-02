@@ -30,9 +30,49 @@ def test_matcher_pairs_same_sku_and_rejects_other_brand():
     assert (None, fk[0]) in pairs
 
 
+def _attrs(title, brand=None, specs=""):
+    return matcher.parse(title, brand, specs)
+
+
 def test_matcher_model_numbers_matter():
-    a = "Samsung Galaxy S24 5G 256GB"
-    assert matcher.score(a, "Samsung Galaxy S24 5G 256GB Onyx Black") > matcher.score(a, "Samsung Galaxy S23 5G 128GB")
+    a = _attrs("Samsung Galaxy S24 5G 256GB")
+    assert matcher.score(a, _attrs("Samsung Galaxy S24 5G 256GB Onyx Black"), None) > 0
+    assert matcher.score(a, _attrs("Samsung Galaxy S23 5G 128GB"), None) == 0
+
+
+def test_matcher_amazon_marketing_title_vs_flipkart_short_title():
+    amz = [L("amazon", "A1", "Apple iPhone 17 Pro 256 GB: 15.93 cm (6.3″) Display with Promotion up to 120Hz, "
+                             "A19 Pro Chip, Breakthrough Battery Life, Pro Fusion Camera", 129900)]
+    fk = [L("flipkart", f"F{i}", f"Apple iPhone 17 Pro ({c}, 256 GB)", 134900)
+          for i, c in enumerate(["Silver", "Deep Blue", "Cosmic Orange"])]
+    tiles = matcher.pair(amz, fk)
+    assert len(tiles) == 1 and tiles[0][0] is amz[0] and tiles[0][1] is not None  # colours fold into one tile
+
+
+def test_matcher_vetoes_neighbouring_models_and_bundles():
+    base = _attrs("Apple iPhone 17 Pro (Silver, 256 GB)")
+    for other in ["Apple iPhone 17 Pro Max 256 GB: 17.42 cm (6.9″) Display",      # variant
+                  "Apple iPhone 17e 256 GB: 15.40 cm (6.1″) Display",             # model
+                  "Apple iPhone 17 Pro (Silver, 512 GB)",                         # storage
+                  "Apple iPhone 17 Pro 256 GB with Protect+ with AppleCare Services",  # bundle
+                  "DailyObjects Back Cover for Apple iPhone 17 Pro 5G"]:          # accessory
+        assert matcher.score(base, _attrs(other, "Apple"), 0.99) == 0, other
+
+
+def test_matcher_brandless_amazon_title_and_price_sanity():
+    a = _attrs("iPhone 18 Pro (256 GB) - Silver", "Apple")
+    assert a.brand == "apple" and a.models == {"18"} and a.storage_gb == 256
+    f = _attrs("Apple iPhone 18 Pro (Silver, 256 GB)")
+    assert matcher.score(a, f, None, 164900, 159900) > 0.85
+    assert matcher.score(a, f, None, 164900, 59900) == 0  # 2.7× apart: not the same offer
+
+
+def test_matcher_accessories_need_photo_evidence():
+    a = _attrs("DailyObjects iPhone 17 Pro Stack Classic Magnetic Case Cover | Compatible with Magsafe", "DailyObjects")
+    f = _attrs("DailyObjects Back Cover for Apple iPhone 17 Pro 5G, Apple iPhone 18 Pro 5G")
+    assert matcher.score(a, f, None) == 0        # titles alone are too generic
+    assert matcher.score(a, f, 0.9) > 0          # same design in the photos
+    assert matcher.score(a, f, 0.4) == 0         # different design
 
 
 def test_category_routing():

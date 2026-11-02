@@ -1,4 +1,5 @@
 """Tarajuu API — FastAPI app. Run: uvicorn app.main:app --port 8000"""
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -8,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from . import db
 from .config import get_settings
 from .routers import agent, auth, me, products, rides
-from .services import agent_queue
+from .services import agent_queue, imgsim
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -16,7 +17,9 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     await db.connect()
+    warm = asyncio.create_task(imgsim.warm_up())  # photo-matching model, off the request path
     yield
+    warm.cancel()
     await db.disconnect()
 
 
@@ -47,4 +50,5 @@ async def health():
         "uberSandbox": s.uber_sandbox,
         "firebase": bool(s.firebase_project_id),
         "places": "google" if s.google_maps_api_key else "photon",
+        "photoMatch": "dinov2" if imgsim._model else ("hash" if imgsim._model is False else "loading"),
     }

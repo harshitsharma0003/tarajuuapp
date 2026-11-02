@@ -75,6 +75,8 @@ def _parse_card(card) -> Listing | None:
         image=_hi_res(img.attributes.get("src")) if img else None,
         url=url,
         brand=title.split()[0] if title else None,
+        # Highlights between the title and the price, e.g. "256 GB ROM | 16.0 cm (6.3 inch) Display".
+        specs=text.split(title, 1)[-1].split("₹", 1)[0][:400],
     )
 
 

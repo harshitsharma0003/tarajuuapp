@@ -63,7 +63,31 @@ async def _upsert(conn, a: Listing | None, f: Listing | None, category: str | No
     if not existing and f:
         existing = await conn.fetchrow("SELECT id, amazon_price, flipkart_price FROM products WHERE flipkart_pid=$1", f.source_id)
 
-    lead = a or f
+    # The latest match decision wins: detach listings that an older (possibly
+    # wrong) pairing left on other rows, and unpair this row from a counterpart
+    # the matcher no longer considers the same product.
+    _AMZ = ("amazon_asin", "amazon_price", "amazon_mrp", "amazon_url", "amazon_rating", "amazon_reviews")
+    _FK = ("flipkart_pid", "flipkart_price", "flipkart_mrp", "flipkart_url", "flipkart_rating", "flipkart_reviews")
+    clear = lambda cols: ", ".join(f"{c}=NULL" for c in cols)  # noqa: E731
+    if existing:
+        row = await conn.fetchrow("SELECT amazon_asin, flipkart_pid FROM products WHERE id=$1", existing["id"])
+        if a and row["amazon_asin"] and row["amazon_asin"] != a.source_id:
+            existing = None  # found via the Flipkart id, but it belongs to another Amazon product
+        elif f and row["flipkart_pid"] and row["flipkart_pid"] != f.source_id:
+            await conn.execute(f"UPDATE products SET {clear(_FK)} WHERE id=$1", existing["id"])
+        elif not f and row["flipkart_pid"]:
+            await conn.execute(f"UPDATE products SET {clear(_FK)} WHERE id=$1", existing["id"])
+        elif not a and row["amazon_asin"]:
+            await conn.execute(f"UPDATE products SET {clear(_AMZ)} WHERE id=$1", existing["id"])
+    if a:
+        await conn.execute(f"UPDATE products SET {clear(_AMZ)} WHERE amazon_asin=$1 AND id IS DISTINCT FROM $2",
+                           a.source_id, existing and existing["id"])
+    if f:
+        await conn.execute(f"UPDATE products SET {clear(_FK)} WHERE flipkart_pid=$1 AND id IS DISTINCT FROM $2",
+                           f.source_id, existing and existing["id"])
+
+    # Amazon titles carry long marketing copy; Flipkart's are concise.
+    lead = f if (f and a and len(a.title) > 90) else (a or f)
     fields = {
         "title": lead.title,
         "brand": lead.brand or lead.title.split()[0],
@@ -155,7 +179,8 @@ async def _load(ids: list) -> list[dict]:
     if not ids:
         return []
     rows = await pool().fetch("SELECT * FROM products WHERE id = ANY($1::uuid[])", ids)
-    by_id = {r["id"]: r for r in rows}
+    # A row can lose both offers when a later search re-pairs its listings elsewhere.
+    by_id = {r["id"]: r for r in rows if r["amazon_asin"] or r["flipkart_pid"]}
     return [serialise(by_id[i]) for i in ids if i in by_id]
 
 
@@ -172,7 +197,7 @@ async def _scrape_and_store(norm: str, category: str | None) -> None:
     ids = []
     async with pool().acquire() as conn:
         async with conn.transaction():
-            for a, f in matcher.pair(amz, fk):
+            for a, f in await matcher.match(amz, fk):
                 ids.append(await _upsert(conn, a, f, category))
             if ids:
                 await conn.execute(
@@ -213,6 +238,9 @@ async def search(query: str, category: str | None = None) -> dict:
     ttl = timedelta(minutes=get_settings().search_cache_minutes)
     now = datetime.now(timezone.utc)
     cached = await pool().fetchrow("SELECT * FROM search_cache WHERE query_norm=$1", norm)
+    if cached and any(v not in ("ok", "disabled") for v in cached["sources"].values()):
+        # A shop was blocked/down: keep the partial result briefly, then retry for a full comparison.
+        ttl = min(ttl, timedelta(minutes=5))
     stale_results = await _load(cached["product_ids"]) if cached else []
 
     if cached and now - cached["fetched_at"] < ttl:

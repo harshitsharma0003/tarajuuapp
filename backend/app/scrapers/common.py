@@ -36,6 +36,7 @@ class Listing:
     brand: str | None = None
     images: list[str] = field(default_factory=list)
     delivery: str | None = None  # e.g. "Friday, 3 October" when the page states it
+    specs: str = ""              # key specs shown on the search card ("256 GB ROM | 6.3 inch …")
 
 
 def client() -> httpx.AsyncClient:
