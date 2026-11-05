@@ -22,6 +22,12 @@ class Config {
   /// for numbers configured as test numbers, so real numbers are unaffected.
   static const otpTestNumbers = {'+919999911111'};
 
+  /// Public policy pages (GitHub Pages from /docs). Also the App Store
+  /// privacy-policy and support URLs.
+  static const siteBase = 'https://harshitsharma0003.github.io/tarajuuapp';
+  static const privacyUrl = '$siteBase/privacy.html';
+  static const supportUrl = '$siteBase/support.html';
+
   /// Show the simulated live-tracking screen after "Confirm Ride". Real trips
   /// are booked in the provider's app (Uber/Ola/Rapido) via deep link, so this
   /// is off by default and only meant for demos.

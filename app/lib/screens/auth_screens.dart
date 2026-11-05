@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../config.dart';
 import '../routes.dart';
@@ -54,10 +55,6 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _google() async {
-    if (!Config.googleSignInEnabled) {
-      toast(context, 'Google sign-in is coming soon — please use your mobile number.');
-      return;
-    }
     setState(() => _gBusy = true);
     try {
       await context.read<Session>().signInWithGoogle();
@@ -79,7 +76,8 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('Welcome back 👋', style: pop(18, w: FontWeight.w700, c: T.amberDark)),
                 const SizedBox(height: 3),
-                Text('Sign in with mobile OTP or Google', style: pop(12, c: T.gray)),
+                Text(Config.googleSignInEnabled ? 'Sign in with mobile OTP or Google' : 'Sign in with your mobile number',
+                    style: pop(12, c: T.gray)),
                 const SizedBox(height: 18),
                 const FieldLabel('Mobile Number'),
                 Row(children: [
@@ -89,8 +87,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 ]),
                 const SizedBox(height: 18),
                 AmberButton('Send OTP →', onPressed: _busy || _gBusy ? null : _sendOtp, busy: _busy),
-                const _OrDivider(),
-                _GoogleButton(onPressed: _gBusy || _busy ? null : _google, busy: _gBusy),
+                if (Config.googleSignInEnabled) ...[
+                  const _OrDivider(),
+                  _GoogleButton(onPressed: _gBusy || _busy ? null : _google, busy: _gBusy),
+                ],
                 const SizedBox(height: 14),
                 Center(
                   child: Text.rich(TextSpan(style: pop(12, c: T.gray), children: [
@@ -101,6 +101,15 @@ class _LoginScreenState extends State<LoginScreen> {
                       recognizer: TapGestureRecognizer()..onTap = () => Navigator.of(context).pushNamed(Routes.signup),
                     ),
                   ])),
+                ),
+                const SizedBox(height: 6),
+                Center(
+                  child: TextButton(
+                    onPressed: _busy || _gBusy
+                        ? null
+                        : () => Navigator.of(context).pushNamedAndRemoveUntil(Routes.home, (_) => false),
+                    child: Text('Skip for now', style: pop(12, w: FontWeight.w600, c: T.gray)),
+                  ),
                 ),
               ]),
             ),
@@ -469,7 +478,11 @@ class _SignupScreenState extends State<SignupScreen> {
                       const TextSpan(text: 'I agree to the '),
                       TextSpan(text: 'Terms & Conditions', style: link, recognizer: TapGestureRecognizer()..onTap = _openTC),
                       const TextSpan(text: ' and '),
-                      TextSpan(text: 'Privacy Policy', style: link, recognizer: TapGestureRecognizer()..onTap = _openTC),
+                      TextSpan(
+                        text: 'Privacy Policy',
+                        style: link,
+                        recognizer: TapGestureRecognizer()..onTap = () => launchUrl(Uri.parse(Config.privacyUrl)),
+                      ),
                       const TextSpan(text: ' of Tarajuu.'),
                     ])),
                   ),

@@ -214,7 +214,7 @@ class _PdpScreenState extends State<PdpScreen> {
         decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: T.line))),
         child: IntrinsicHeight(
           child: Row(children: [
-            for (final (i, (ico, t, s)) in const [('🛡️', 'Buyer Protection', '100% safe'), ('✅', 'Authenticity', 'Verified sellers'), ('💰', 'Money Back', 'Guarantee')].indexed)
+            for (final (i, (ico, t, s)) in const [('⚖️', 'Compared', 'Amazon & Flipkart'), ('🔄', 'Live prices', 'Checked often'), ('🛒', 'Buy direct', 'On the store')].indexed)
               Expanded(
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 9),

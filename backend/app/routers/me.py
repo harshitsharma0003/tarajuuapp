@@ -37,6 +37,13 @@ async def update(body: ProfileUpdate, user: dict = Depends(current_user)):
     return {"user": user_json(row)}
 
 
+@router.delete("")
+async def delete_account(user: dict = Depends(current_user)):
+    # Searches, favourites, buy clicks and ride bookings go with it (ON DELETE CASCADE).
+    await pool().execute("DELETE FROM users WHERE id=$1", user["id"])
+    return {"deleted": True}
+
+
 @router.get("/recent")
 async def recent(user: dict = Depends(current_user)):
     rows = await pool().fetch(

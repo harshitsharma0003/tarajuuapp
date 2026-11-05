@@ -501,11 +501,11 @@ class _DarkHero extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('🔥 LIMITED TIME', style: pop(8.5, w: FontWeight.w700, c: Colors.white.withValues(alpha: .65), ls: 1.2)),
+                    Text('🔥 SHOP SMARTER', style: pop(8.5, w: FontWeight.w700, c: Colors.white.withValues(alpha: .65), ls: 1.2)),
                     const SizedBox(height: 5),
                     Text('BIGGEST DEAL\nFINDER', style: nun(22, w: FontWeight.w900, c: Colors.white, h: 1.1)),
                     const SizedBox(height: 4),
-                    Text('Get upto 18% off · Compare now', style: pop(10, c: Colors.white.withValues(alpha: .7))),
+                    Text('Amazon vs Flipkart · Compare now', style: pop(10, c: Colors.white.withValues(alpha: .7))),
                     const SizedBox(height: 11),
                     GestureDetector(
                       onTap: () => Navigator.of(context).pushNamed(Routes.shop),

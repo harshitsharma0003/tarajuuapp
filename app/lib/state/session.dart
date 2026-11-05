@@ -204,6 +204,20 @@ class Session extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Deletes the Tarajuu account on the server, then the Firebase login
+  /// itself, and signs out.
+  Future<void> deleteAccount() async {
+    await Api.instance.deleteAccount();
+    if (firebaseReady) {
+      try {
+        await FirebaseAuth.instance.currentUser?.delete();
+      } on FirebaseAuthException {
+        // e.g. requires-recent-login: the Tarajuu data is already gone.
+      }
+    }
+    await signOut();
+  }
+
   static String _friendly(FirebaseAuthException e) => switch (e.code) {
         'invalid-phone-number' => 'That mobile number looks invalid.',
         'invalid-verification-code' => 'Wrong OTP. Please check and try again.',

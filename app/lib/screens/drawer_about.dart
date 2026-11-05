@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../config.dart';
 import '../routes.dart';
 import '../state/session.dart';
 import '../theme.dart';
@@ -82,17 +84,30 @@ class DrawerScreen extends StatelessWidget {
                   width: double.infinity,
                   padding: EdgeInsets.fromLTRB(18, 13, 18, 13 + MediaQuery.paddingOf(context).bottom),
                   decoration: const BoxDecoration(border: Border(top: BorderSide(color: T.amberPale))),
-                  child: GestureDetector(
-                    onTap: () async {
-                      if (session.signedIn) await session.signOut();
-                      nav.pushNamedAndRemoveUntil(Routes.login, (_) => false);
-                    },
-                    child: Row(children: [
-                      SvgPicture.string(signOutIcon, width: 14, height: 14),
-                      const SizedBox(width: 9),
-                      Text(session.signedIn ? 'Sign out' : 'Sign in', style: pop(13, c: const Color(0xFFD85A30))),
-                    ]),
-                  ),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    GestureDetector(
+                      onTap: () async {
+                        if (session.signedIn) await session.signOut();
+                        nav.pushNamedAndRemoveUntil(Routes.login, (_) => false);
+                      },
+                      child: Row(children: [
+                        SvgPicture.string(signOutIcon, width: 14, height: 14),
+                        const SizedBox(width: 9),
+                        Text(session.signedIn ? 'Sign out' : 'Sign in', style: pop(13, c: const Color(0xFFD85A30))),
+                      ]),
+                    ),
+                    if (session.signedIn) ...[
+                      const SizedBox(height: 14),
+                      GestureDetector(
+                        onTap: () => _deleteAccount(context),
+                        child: Row(children: [
+                          const Icon(Icons.delete_outline, size: 15, color: Color(0xFFB42318)),
+                          const SizedBox(width: 8),
+                          Text('Delete account', style: pop(12, c: const Color(0xFFB42318))),
+                        ]),
+                      ),
+                    ],
+                  ]),
                 ),
               ]),
             ),
@@ -100,6 +115,37 @@ class DrawerScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _deleteAccount(BuildContext context) async {
+    final session = context.read<Session>();
+    final nav = Navigator.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text('Delete account?', style: pop(15, w: FontWeight.w700, c: T.amberDark)),
+        content: Text(
+          'This permanently deletes your Tarajuu account, profile, recent searches, saved products and savings history. This cannot be undone.',
+          style: pop(12, c: T.gray, h: 1.5),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: Text('Cancel', style: pop(13, c: T.gray))),
+          TextButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: Text('Delete', style: pop(13, w: FontWeight.w700, c: const Color(0xFFB42318))),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await session.deleteAccount();
+      final root = nav.context;
+      nav.pushNamedAndRemoveUntil(Routes.login, (_) => false);
+      if (root.mounted) toast(root, 'Your account has been deleted.');
+    } catch (e) {
+      if (context.mounted) toast(context, 'Could not delete your account: ${e.toString().replaceFirst('Exception: ', '')}');
+    }
   }
 
   Future<void> _editProfile(BuildContext context) async {
@@ -173,6 +219,16 @@ class AboutScreen extends StatelessWidget {
                 card('🛍️ Shop Smarter', 'Search any product — see Amazon and Flipkart prices compared instantly.'),
                 card('🚕 Ride Smarter', 'Compare Uber, Rapido and Ola fares for any route in one tap.'),
                 card('💡 Our Mission', 'Every Indian deserves the best value. Tarajuu puts comparison in your hands.'),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Wrap(alignment: WrapAlignment.center, spacing: 18, children: [
+                    for (final (label, url) in [('Privacy Policy', Config.privacyUrl), ('Support', Config.supportUrl)])
+                      TextButton(
+                        onPressed: () => launchUrl(Uri.parse(url)),
+                        child: Text(label, style: pop(12, w: FontWeight.w600, c: T.amber)),
+                      ),
+                  ]),
+                ),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 14),
                   child: Text('Version 1.0.0 · Made with ❤️ in India', style: pop(10, c: T.gray)),

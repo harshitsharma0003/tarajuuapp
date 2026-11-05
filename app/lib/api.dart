@@ -76,6 +76,9 @@ class Api {
     return (AppUser.fromJson(j['user']), (j['savedTotal'] as num).round());
   }
 
+  /// Permanently deletes the account and everything stored with it.
+  Future<void> deleteAccount() => delete('/me');
+
   Future<(List<RecentItem>, List<Product>)> recent() async {
     final j = await get('/me/recent');
     return (
