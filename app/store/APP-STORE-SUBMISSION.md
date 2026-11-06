@@ -1,8 +1,8 @@
 # Tarajuu: App Store Connect submission sheet
 
 Everything to paste into App Store Connect, field by field. The screenshots are in
-`app/store/ios-screenshots/` (1290 × 2796, the 6.9" iPhone size; Apple scales them for
-smaller iPhones). The app is iPhone-only and portrait-only, so no iPad screenshots are needed.
+`app/store/ios-screenshots/6.9-inch_1320x2868/` (upload to the 6.9" iPhone slot; Apple scales them for
+smaller iPhones). If App Store Connect asks for the 6.5" size instead, use `6.5-inch_1284x2778/`. The app is iPhone-only and portrait-only, so no iPad screenshots are needed.
 
 ---
 
