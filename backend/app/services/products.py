@@ -72,7 +72,12 @@ _LOOKUP_MIN_SCORE = 0.7
 def lookup_query(listing: Listing) -> str:
     """A short search query naming one product: "HP 15 AMD Ryzen 5 7520U 16GB RAM 512GB"."""
     head = re.split(r"\s*[(:|｜]\s*|\s+[-–—]\s+", listing.title, maxsplit=1)[0]
-    words = re.findall(r"[A-Za-z0-9][A-Za-z0-9.+\-]*", head)[:10]
+    head = re.sub(r"['’]s\b", "", head)  # "Men's" → "Men", not "Men s"
+    words = re.findall(r"[A-Za-z0-9][A-Za-z0-9.+\-]*", head)
+    if len(words) > 10:
+        # Keep the product noun that ends the name ("… Casual Shirt"), or the
+        # other shop answers with unrelated products (jeans for a shirt).
+        words = words[:9] + words[-1:]
     q = " ".join(words)
     at = matcher.attrs_of(listing)
     if at.ram_gb and f"{at.ram_gb:g}gb" not in q.lower().replace(" ", ""):
