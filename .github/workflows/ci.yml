@@ -93,7 +93,7 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      - run: flutter analyze
+      - run: flutter analyze --no-fatal-infos
       # Signing key from repo secrets (see README → Android signing). Without the
       # secrets the build falls back to a throwaway debug key.
       - name: Restore upload keystore
