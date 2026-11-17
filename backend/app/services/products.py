@@ -1,6 +1,7 @@
 """Product search (PLP) and detail (PDP): scrape → match → persist → serialise."""
 import asyncio
 import logging
+import re
 from datetime import datetime, timedelta, timezone
 
 from ..config import get_settings
@@ -34,15 +35,18 @@ async def _run_source(name: str, coro) -> tuple[str, list[Listing]]:
         return "error", []
 
 
+def _flipkart_search(query: str, limit: int = 12):
+    s = get_settings()
+    return flipkart.search(query, limit) if s.flipkart_affiliate else flipkart_html.search(query, limit)
+
+
 async def _fetch_listings(query: str) -> tuple[dict, list[Listing], list[Listing]]:
     s = get_settings()
     tasks = {}
     if s.amazon_enabled:
         tasks["amazon"] = _run_source("amazon", amazon.search(query))
-    if s.flipkart_affiliate:
-        tasks["flipkart"] = _run_source("flipkart", flipkart.search(query))
-    elif s.flipkart_scrape:
-        tasks["flipkart"] = _run_source("flipkart", flipkart_html.search(query))
+    if s.flipkart_affiliate or s.flipkart_scrape:
+        tasks["flipkart"] = _run_source("flipkart", _flipkart_search(query))
     results = dict(zip(tasks, await asyncio.gather(*tasks.values())))
     sources = {
         "amazon": results["amazon"][0] if "amazon" in results else "disabled",
@@ -51,6 +55,84 @@ async def _fetch_listings(query: str) -> tuple[dict, list[Listing], list[Listing
     amz = results.get("amazon", ("", []))[1]
     fk = results.get("flipkart", ("", []))[1]
     return sources, amz, fk
+
+
+# ───────────────────────── cross-shop lookups ─────────────────────────
+# A broad query ("laptop 16gb ram") returns different products on each shop, so
+# few tiles carry both prices. For the top listings found on only one shop, search
+# the other shop for that exact product and keep it only if the matcher agrees.
+# Amazon blocks easily, so it gets fewer lookups than Flipkart.
+LOOKUPS_ON_FLIPKART = 8
+LOOKUPS_ON_AMAZON = 3
+_LOOKUP_RESULTS = 6
+# Lookup pairs need model-level identity, or text and photo agreeing (see matcher.score).
+_LOOKUP_MIN_SCORE = 0.7
+
+
+def lookup_query(listing: Listing) -> str:
+    """A short search query naming one product: "HP 15 AMD Ryzen 5 7520U 16GB RAM 512GB"."""
+    head = re.split(r"\s*[(:|｜]\s*|\s+[-–—]\s+", listing.title, maxsplit=1)[0]
+    words = re.findall(r"[A-Za-z0-9][A-Za-z0-9.+\-]*", head)[:10]
+    q = " ".join(words)
+    at = matcher.attrs_of(listing)
+    if at.ram_gb and f"{at.ram_gb:g}gb" not in q.lower().replace(" ", ""):
+        q += f" {at.ram_gb:g}GB RAM"
+    if at.storage_gb and f"{at.storage_gb:g}" not in q:
+        q += f" {at.storage_gb:g}GB" if at.storage_gb < 1024 else f" {at.storage_gb / 1024:g}TB"
+    return q
+
+
+async def _counterpart(listing: Listing, shop: str, sem: asyncio.Semaphore) -> Listing | None:
+    async with sem:
+        try:
+            if shop == "flipkart":
+                found = await _flipkart_search(lookup_query(listing), _LOOKUP_RESULTS)
+            else:
+                found = await amazon.search(lookup_query(listing), _LOOKUP_RESULTS)
+        except SourceBlocked:
+            return None
+        except Exception as e:  # noqa: BLE001 — a failed lookup just leaves the tile single-shop
+            log.warning("%s lookup failed for %r: %r", shop, listing.title[:60], e)
+            return None
+    amz, fk = ([listing], found) if shop == "flipkart" else (found, [listing])
+    tiles = await matcher.match(amz, fk, min_score=_LOOKUP_MIN_SCORE)
+    for a, f in tiles:
+        if a and f:
+            return f if shop == "flipkart" else a
+    return None
+
+
+async def cross_match(pairs: list[tuple[Listing | None, Listing | None]], sources: dict) -> list:
+    """Pair single-shop tiles with the same product found by searching the other shop."""
+    lone_a = [i for i, (a, f) in enumerate(pairs) if a and not f]
+    lone_f = [i for i, (a, f) in enumerate(pairs) if f and not a]
+    jobs: dict[int, tuple[str, asyncio.Task]] = {}
+    sem = asyncio.Semaphore(3)
+    if sources.get("flipkart") == "ok":
+        for i in lone_a[:LOOKUPS_ON_FLIPKART]:
+            jobs[i] = ("flipkart", asyncio.ensure_future(_counterpart(pairs[i][0], "flipkart", sem)))
+    if sources.get("amazon") == "ok":
+        for i in lone_f[:LOOKUPS_ON_AMAZON]:
+            jobs[i] = ("amazon", asyncio.ensure_future(_counterpart(pairs[i][1], "amazon", sem)))
+    if not jobs:
+        return pairs
+    await asyncio.gather(*(t for _, t in jobs.values()))
+
+    out = list(pairs)
+    used = {(l.source, l.source_id) for a, f in pairs if a and f for l in (a, f)}
+    drop: set[int] = set()
+    for i, (shop, task) in jobs.items():
+        other = task.result()
+        if not other or (other.source, other.source_id) in used:
+            continue
+        used.add((other.source, other.source_id))
+        a, f = out[i]
+        out[i] = (a, other) if shop == "flipkart" else (other, f)
+        # The counterpart may already be a single-shop tile of its own: fold it in.
+        side = 1 if shop == "flipkart" else 0
+        drop |= {j for j, t in enumerate(out)
+                 if j != i and t[side] and t[side].source_id == other.source_id and not t[1 - side]}
+    return [t for j, t in enumerate(out) if j not in drop]
 
 
 # ───────────────────────── persistence ─────────────────────────
@@ -197,10 +279,12 @@ _finished: dict[str, tuple[datetime, dict]] = {}  # recent jobs that found nothi
 
 async def _scrape_and_store(norm: str, category: str | None) -> None:
     sources, amz, fk = await _fetch_listings(norm)
+    # Match and look up counterparts before taking a DB connection: lookups take seconds.
+    pairs = await cross_match(await matcher.match(amz, fk), sources)
     ids = []
     async with pool().acquire() as conn:
         async with conn.transaction():
-            for a, f in await matcher.match(amz, fk):
+            for a, f in pairs:
                 ids.append(await _upsert(conn, a, f, category))
             if ids:
                 await conn.execute(

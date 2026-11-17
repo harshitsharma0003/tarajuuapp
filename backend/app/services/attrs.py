@@ -21,7 +21,7 @@ _BRAND_ALIAS = {"mi": "xiaomi", "redmi": "xiaomi", "oneplus": "oneplus", "lg": "
 
 # Words that distinguish one model of a line from its neighbour.
 VARIANT_WORDS = {"pro", "max", "plus", "ultra", "mini", "lite", "fe", "neo", "air", "fold", "flip",
-                 "edge", "prime", "se", "slim", "turbo"}
+                 "edge", "prime", "se", "slim", "turbo", "ii", "iii", "iv"}
 
 ACCESSORY_WORDS = {"case", "cases", "cover", "covers", "glass", "protector", "guard", "charger", "cable",
                    "adapter", "adaptor", "skin", "holder", "stand", "strap", "pouch", "tempered", "sleeve",
@@ -39,16 +39,33 @@ COLOURS = {
 _FILLER = {"for", "with", "and", "the", "of", "in", "to", "a", "by", "on", "new", "latest", "model",
            "colour", "color", "5g", "4g", "lte", "smartphone", "mobile", "phone", "compatible", "edition"}
 
-_STORE = re.compile(r"(\d+(?:\.\d+)?)\s*(gb|tb)\b\s*(ram|rom|storage|ssd|hdd|internal|memory|emmc)?", re.I)
+# "16GB DDR4 RAM" / "16 GB LPDDR5X RAM": the memory type may sit between the size and its label.
+# "512 SSD" (no unit) still means GB.
+_STORE = re.compile(r"(\d+(?:\.\d+)?)\s*(gb|tb)\b\s*(?:(?:lp)?ddr\d\w*\s*)?(ram|rom|storage|ssd|hdd|internal|memory|emmc)?"
+                    r"|(\d{3,4})\s*(ssd|hdd)\b", re.I)
 _INCH = re.compile(r"(\d{1,3}(?:\.\d+)?)\s*(?:inch(?:es)?|in\b|″|\"|''|-inch)", re.I)
-_CM = re.compile(r"(\d{2,3}(?:\.\d+)?)\s*cm\b", re.I)
+_CM = re.compile(r"(\d{2,3}(?:\.\d+)?)\s*cms?\b", re.I)
 # Other quantities that tell SKUs apart (fan sweep, capacity, power …).
 _MEASURE = re.compile(r"(\d+(?:\.\d+)?)\s*(mm|kg|litres?|liters?|ltrs?|l|tons?|w|watts?|mah|ml|g)\b", re.I)
 _UNIT = {"litre": "l", "litres": "l", "liter": "l", "liters": "l", "ltr": "l", "ltrs": "l", "ton": "ton",
          "tons": "ton", "watt": "w", "watts": "w"}
 # Network generation and camera/refresh specs: neither identifies a model.
 _NOISE = re.compile(r"\b[2-5]g\b|\b\d+\s*(?:mp|hz)\b", re.I)
+# Spec quantities that are not model numbers: playtime, latency, mic/jar/blade
+# counts, star ratings, warranty, water rating, Bluetooth version, CPU generation.
+_SPEC = re.compile(
+    r"\b\d+\s*(?:hrs?|hours?|h|ms|mins?|minutes?|secs?|seconds?|mics?|jars?|blades?|speeds?|stars?|"
+    r"years?|yrs?|months?)\b|\bipx?\d+\b|\b(?:bt|bluetooth)\s*v?\d+(?:\.\d+)?\b|\bv\d+(?:\.\d+)?\b"
+    r"|\b\d+d\b|\b\d+(?:st|nd|rd|th)\s*gen\b", re.I)
 _PACK = re.compile(r"(?:pack\s+of|set\s+of)\s*(\d+)|(\d+)\s*(?:pcs|pieces|pack)\b", re.I)
+# Letter+digit tokens that are specs, not model codes: "13th" (gen), "40h"/"70hrs" (battery),
+# "ddr4", "11home", "4k", "wifi6", "bt5", "ipx5", "usb3".
+_NOT_CODE = re.compile(r"^\d+(?:st|nd|rd|th|h|hr|hrs|k|p|x)$|^(?:lp)?ddr\d|^\d+home$|^(?:wifi|bt|ipx?|usb|v)\d", re.I)
+# Processor model: "Ryzen 7 155", "Core Ultra 5 225U", "i5-1335U", "Core 5 120U", "Apple M4".
+_CPU = re.compile(r"ryzen\s*\d\s*(?:hexa\s*core\s*|octa\s*core\s*)?(\d{3,4}[a-z]{0,2})\b"
+                  r"|core\s*(?:ultra\s*)?\d\s*(?:\d+th\s*gen\s*)?(\d{3,5}[a-z]{0,2})\b"
+                  r"|\bi[3579][\s-]*(?:\d+th\s*gen\s*)?(\d{4,5}[a-z]{0,2})\b"
+                  r"|\b(m[1-6])(?:\s*(pro|max))?\b", re.I)
 _BUNDLE = re.compile(r"apple\s*care|protect\s*\+|\bcombo\b|\bbundle\b|\bwith\s+\w+\s+services\b", re.I)
 
 
@@ -67,6 +84,10 @@ class Attrs:
     measures: dict = field(default_factory=dict)  # unit → set of values
     pack: int = 1
     colours: frozenset = field(default_factory=frozenset)
+    # Letter+digit model codes ("ua7380", "1305u", "tat1269"): two listings that both
+    # carry codes but share none are different products (or different CPUs).
+    codes: frozenset = field(default_factory=frozenset)
+    cpu: str | None = None         # laptop processor model: "7520u", "155", "m4"
 
     def group_key(self) -> tuple:
         """Listings with the same key are colour variants of one product."""
@@ -92,13 +113,22 @@ def _gb(value: str, unit: str) -> float:
     return float(value) * (1024 if unit.lower() == "tb" else 1)
 
 
+def _cpu(text: str) -> str | None:
+    m = _CPU.search(text)
+    if not m:
+        return None
+    return "".join(g for g in m.groups() if g).lower()
+
+
 def parse(title: str, brand: str | None = None, specs: str = "") -> Attrs:
     core_raw = _core_text(title)
     text_all = f"{title} | {specs}"
 
     # storage / RAM
     labelled_ram, labelled_rom, unlabelled = [], [], []
-    for v, unit, label in _STORE.findall(text_all):
+    for v, unit, label, bare, bare_label in _STORE.findall(text_all):
+        if bare:
+            v, unit, label = bare, "gb", bare_label
         gb = _gb(v, unit)
         label = (label or "").lower()
         (labelled_ram if label in ("ram", "memory") else labelled_rom if label else unlabelled).append(gb)
@@ -132,7 +162,7 @@ def parse(title: str, brand: str | None = None, specs: str = "") -> Attrs:
         pack = int(m.group(1) or m.group(2))
 
     # strip quantities before tokenising so "256 GB" / "6.3″" don't look like model numbers
-    stripped = _STORE.sub(" ", core_raw)
+    stripped = _SPEC.sub(" ", _STORE.sub(" ", core_raw))
     stripped = _INCH.sub(" ", _CM.sub(" ", _MEASURE.sub(" ", stripped)))
     words = _words(stripped)
     colours = frozenset(w for w in words if w in COLOURS)
@@ -161,4 +191,7 @@ def parse(title: str, brand: str | None = None, specs: str = "") -> Attrs:
         measures=measures,
         pack=pack,
         colours=colours,
+        cpu=_cpu(text_all),
+        codes=frozenset(w for w in models if len(w) >= 4 and not w.isdigit() and any(c.isalpha() for c in w)
+                        and not _NOT_CODE.match(w)),
     )

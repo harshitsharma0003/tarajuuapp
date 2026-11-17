@@ -49,6 +49,10 @@ def conflict(a: Attrs, b: Attrs, price_a: int | None = None, price_b: int | None
         return "model"
     if a.models and b.models and a.variants != b.variants:
         return "variant"
+    if a.codes and b.codes and not (a.codes & b.codes):
+        return "code"
+    if a.cpu and b.cpu and a.cpu != b.cpu:
+        return "cpu"
     for x, y, name in ((a.storage_gb, b.storage_gb, "storage"), (a.ram_gb, b.ram_gb, "ram")):
         if x and y and x != y:
             return name
@@ -87,6 +91,11 @@ def score(a: Attrs, b: Attrs, img: float | None, price_a: int | None = None, pri
 
 def _evidence(a: Attrs, b: Attrs, img: float | None) -> float:
     text = text_similarity(a, b)
+    if bool(a.codes) != bool(b.codes) and fuzz.token_sort_ratio(a.core, b.core) < 60:
+        # Only one title names a model code ("Buds VS401" vs "Buds Play"). Token-set
+        # similarity scores a short title inside a long one as a perfect match, so
+        # compare the whole names instead; a similar photo alone isn't enough.
+        return 0.0
     if strong_identity(a, b, text):
         return 0.85 + 0.1 * text + (0.05 if img is not None and img >= IMAGE_CONFIRMS else 0)
     if img is None:
@@ -136,10 +145,12 @@ def _best_pair(ga: _Group, gf: _Group, use_images: bool) -> tuple[float, Listing
     return best, ga.cheapest(), gf.cheapest()
 
 
-async def match(amazon: list[Listing], flipkart: list[Listing],
-                use_images: bool = True) -> list[tuple[Listing | None, Listing | None]]:
+async def match(amazon: list[Listing], flipkart: list[Listing], use_images: bool = True,
+                min_score: float = 0.0) -> list[tuple[Listing | None, Listing | None]]:
     """One (amazon, flipkart) tuple per tile: matched tiles first, each part in
-    relevance order. Either side may be None."""
+    relevance order. Either side may be None. Pairs scoring at or below
+    min_score stay unpaired (lookups use a higher bar: their results are
+    deliberately the target's close neighbours)."""
     ga, gf = _group(amazon), _group(flipkart)
 
     if use_images:
@@ -155,7 +166,7 @@ async def match(amazon: list[Listing], flipkart: list[Listing],
     for i, x in enumerate(ga):
         for j, y in enumerate(gf):
             s, la, lf = _best_pair(x, y, use_images)
-            if s > 0:
+            if s > min_score:
                 candidates.append((s, i, j, la, lf))
     candidates.sort(key=lambda c: c[0], reverse=True)
 

@@ -130,3 +130,39 @@ def test_deeplinks():
     a, b = {"lat": 28.6, "lon": 77.2, "name": "CP"}, {"lat": 28.55, "lon": 77.1, "name": "Airport"}
     assert rides.deeplink("uber", a, b).startswith("https://m.uber.com/ul/?action=setPickup")
     assert "drop_lat=28.55" in rides.deeplink("ola", a, b)
+
+
+def test_laptop_ram_with_memory_type_and_bare_ssd():
+    a = _attrs("Acer Aspire One,AMD Ryzen 5 3500U Processors, 16GB DDR4 RAM/512 SSD, 15.6\" FHD")
+    assert (a.ram_gb, a.storage_gb) == (16, 512)
+    f = _attrs("Acer Aspire AMD Ryzen 5 3500U - (16 GB/512 GB SSD/Windows 11 Home) A115-39 Notebook")
+    assert matcher.score(a, f, None) > 0
+
+
+def test_different_model_codes_or_cpus_never_pair():
+    assert matcher.conflict(
+        _attrs("acer Aspire Lite, 13th Gen, Intel Core i3-1305U, 16GB RAM, 512GB SSD"),
+        _attrs("Acer Aspire Lite Intel Core i3 12th Gen 1215U - (16 GB/512 GB SSD/Windows 11 Home)")) == "code"
+    assert matcher.conflict(
+        _attrs("LG 108 cms (43 inches) NU87 AI Series Nano 4K Ultra HD Smart LED TV"),
+        _attrs("LG AI TV UA7380 108 cm (43 inch) Ultra HD (4K) LED Smart WebOS TV")) == "code"
+    # Battery hours and CPU generation are specs, not model codes.
+    assert matcher.conflict(
+        _attrs("boAt Airdopes 219, 4Mics ENx, 40H Battery"),
+        _attrs("boAt Airdopes 219, 50H Battery, Free Music Streaming")) is None
+
+
+def test_laptop_processor_must_agree():
+    a = _attrs("ASUS TUF A15 (2026),AMD Ryzen 7 155, RTX 3050-4GB, 16GB RAM, 512GB SSD")
+    assert a.cpu == "155"
+    assert matcher.conflict(a, _attrs("ASUS TUF Gaming A15 (2026) AMD Ryzen 7 170 - (16 GB/512 GB SSD)")) == "cpu"
+    assert _attrs("Samsung Galaxy Book4 Metal Intel Core i5 13th Gen 1335U - (16 GB/512 GB SSD)").cpu == "1335u"
+    assert _attrs("Apple MacBook Air (M5, 2026) M5 - (16 GB/512 GB SSD/Tahoe)").cpu == "m5"
+
+
+def test_spec_numbers_are_not_model_numbers():
+    a = _attrs("Noise Newly Launch Buds Play Truly Wireless Earbuds with 40H of Playtime, Quad Mic with ENC, 50ms")
+    assert matcher.conflict(a, _attrs("Noise Buds Play with BT v6.0, 13mm Driver, 40Hrs Playtime, IPX4 Water")) is None
+    assert matcher.score(a, _attrs("Noise Buds VS401 with 50 Hrs Playtime, Quad Mic with ENC"), 0.9) == 0
+    assert matcher.conflict(_attrs("TRIGGR Raze 2 True Wireless Earbuds with Bluetooth v6.0, 40H Battery"),
+                            _attrs("TRIGGR Raze 1 with 40H Battery, 40ms Low Latency")) == "model"

@@ -14,6 +14,10 @@ _ROBOT_MARKERS = ("api-services-support@amazon.com", "Type the characters you se
 def _check_blocked(status: int, html: str) -> None:
     if status == 503 or any(m in html for m in _ROBOT_MARKERS):
         raise SourceBlocked("amazon")
+    # A ~2 KB script-only page (an interstitial bot check) instead of results:
+    # report it as blocked rather than "no products found".
+    if len(html) < 10_000 and "data-asin" not in html:
+        raise SourceBlocked("amazon")
 
 
 def product_url(asin: str) -> str:

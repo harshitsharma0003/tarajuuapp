@@ -15,6 +15,7 @@ from .common import Listing, SourceBlocked, client, parse_int
 
 _BASE = "https://www.flipkart.com"
 _UNAVAILABLE = ("Currently unavailable", "Sold Out", "Coming Soon")
+_BADGES = {"sponsored", "ad", "bestseller", "best seller", "hot deal", "trending", "new", "top rated", "assured"}
 
 
 def search_url(query: str) -> str:
@@ -40,6 +41,12 @@ def _parse_card(card) -> Listing | None:
     title = (img.attributes.get("alt") or "").strip() if img else ""
     if not title:
         title = (link.attributes.get("title") or link.text(strip=True) or "").strip()
+    if not title:
+        # Fashion cards (shoes, clothes) have no alt text: the brand and the
+        # product name are the first two text lines, before the price.
+        lines = [p.strip() for p in text.split("₹", 1)[0].split("|")]
+        lines = [p for p in lines if p and p.lower() not in _BADGES]
+        title = " ".join(lines[:2]).strip()
     if not title:
         return None
 
@@ -76,7 +83,7 @@ def _parse_card(card) -> Listing | None:
         url=url,
         brand=title.split()[0] if title else None,
         # Highlights between the title and the price, e.g. "256 GB ROM | 16.0 cm (6.3 inch) Display".
-        specs=text.split(title, 1)[-1].split("₹", 1)[0][:400],
+        specs=text.split(title, 1)[1].split("₹", 1)[0][:400] if title in text else "",
     )
 
 
